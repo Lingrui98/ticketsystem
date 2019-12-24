@@ -1,6 +1,7 @@
 package ticketingsystem;
 
 import java.util.concurrent.atomic.*;
+import java.util.function.*;
 
 public class TicketingDS implements TicketingSystem {
 
@@ -11,62 +12,13 @@ public class TicketingDS implements TicketingSystem {
     private int stationnum = 10;
     private int threadnum = 16;
 
-    Train[] trains = null;
+    private int seatPerTrain = coachnum * seatnum;
+    private int totalSeatNum = seatPerTrain * routenum;
 
-    public class Train {
-        int c;  //Coachnum
-        int s;  //Seatnum
-        int st; //Stationnum
 
-        public Coach[] coaches = null;
-
-        public class Coach {
-            int s;  //Seatnum
-            int st; //Stationnum
-
-            public PerSeatDS[] seats = null;
-
-            Coach(int seatnum){
-                this.s = seatnum;
-                SetSeats(this.s);
-            }
-
-            Coach() {
-                this.s = 8;
-                SetSeats(this.s);
-            }
-
-            private void SetSeats(int seatnum, int stationnum) {
-                this.seats = new PerseatDS[seatnum+1];
-                int i = 0;
-                for (i = 0; i <= seatnum; i++) {
-                    this.seats[i] = new PerseatDS(stationnum);
-                }
-            }
-        }
-
-        Train(int coachnum, int seatnum, int stationnum) {
-            this.c = coachnum;
-            this.s = seatnum;
-            this.st = stationnum;
-            SetCoaches(this.c, this.s, this.st);
-        }
-
-        Train() {
-            this.c = 5;
-            this.s = 100;
-            this.st = 10;
-            SetCoaches(this.c, this.s, this.st);
-        }
-
-        private void SetCoaches(int coachnum, int seatnum, int stationnum) {
-            this.coaches = new Coach[coachnum+1];
-            int i = 0;
-            for (i = 0; i <= coachnum; i++) {
-                this.coaches[i] = new Coach(seatnum, stationnum);
-            }
-        }
-    }
+    AtomicInteger[] trains = null;
+    // 31 : 2*stationnum  | 2*stationnum-1 : 0
+    //    Unused          | Bitset of status of each station(departure, arrive)
 
     public TicketingDS(int routenum, int coachnum, int seatnum, int stationnum, int threadnum) {
         this.routenum = routenum;
@@ -74,18 +26,64 @@ public class TicketingDS implements TicketingSystem {
         this.seatnum = seatnum;
         this.stationnum = stationnum;
         this.threadnum = threadnum;
+        this.seatPerTrain = this.seatnum * this.coachnum;
+        this.totalSeatNum = this.seatPerTrain * this.routenum;
         SetTrains(routenum, coachnum, seatnum, stationnum);
     }
+
+    // This function set bits [x, y] to 1 (including x and y)
+    // x is less than y
+    // x, y belongs to [1,NUM_BITS]
+    public final int setBitsToOne(int num, int x, int y) { // x should be less than y
+        int xBase = 0xffffffff >>> (33 - x);
+        xBase = ~xBase;
+        int yBase = 0xffffffff >>> (32 - y);
+        return num | (xBase & yBase);
+    }
+
+    // This function set bits [x, y] to 0 (including x and y)
+    // x is less than y
+    // x, y belongs to [1,NUM_BITS]
+    public final int setBitsToZero(int num, int x, int y) { // x should be less than y
+        int xBase = 0xffffffff >>> (33 - x);
+        int yBase = 0xffffffff >>> (32 - y);
+        yBase = ~yBase;
+        return num & (xBase | yBase);
+    }
+
+    IntBinaryOperator buyUpdate = new IntBinaryOperator() {
+        @Override
+        public int applyAsInt(int left, int right) {
+            // left is current value
+            // right is a number mapped from (depature, arrival)
+            int y = ticketSetIndexToArrival(right);
+            int x = ticketSetIndexToDeparture(right);
+            return setBitsToOne(left, x, y);
+        }
+    }
+
+    IntBinaryOperator refundUpdate = new IntBinaryOperator() {
+        @Override
+        public int applyAsInt(int left, int right) {
+            // left is current value
+            // right is a number mapped from (depature, arrival)
+            int y = ticketSetIndexToArrival(right);
+            int x = ticketSetIndexToDeparture(right);
+            return setBitsToZero(left, x, y);
+        }
+    }
+
+
 
     public TicketingDS() {
         SetTrains(this.routenum, this.coachnum, this.seatnum, this.stationnum);
     }
 
-    private void SetTrains(int routenum, int coachnum, int seatnum, int stationnum) {
-        this.trains = new Train[routenum+1];
+    private void SetTrains() {
+        this.trains = new AtomicInteger[this.totalSeatNum];
         int i = 0;
-        for (i = 0; i <= routenum; i++) {
-            this.trains[i] = new Train(coachnum, seatnum, stationnum)；
+        for (i = 0; i < this.totalSeatNum; i++) {
+            this.trains[i].set(0);
         }
     }
 

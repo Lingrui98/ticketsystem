@@ -11,10 +11,14 @@ public class TicketingDS implements TicketingSystem {
     private int stationnum = 10;
     private int threadnum = 16;
 
-    protected AtomicInteger[][] seats = null;
+    private int perRouteSetNum = stationnum * (stationnum -  1) / 2;
+    private int ticketSetNum = routenum * perRouteSetNum;
+    private int seatPerCoach = coachnum * seatnum;
 
-    protected LockFreeHashSet<Ticket> ticketSet = new LockFreeHashSet<Ticket>(p);
-
+    LockFreeHashSet<Integer>[] ticketSetArray = null;
+    // The hashset is indexed by its value
+    // the value is an index calculated from (coach, seat),
+    //   maximum is coach*seat
 
     public TicketingDS(int routenum, int coachnum, int seatnum, int stationnum, int threadnum) {
         this.routenum = routenum;
@@ -22,22 +26,24 @@ public class TicketingDS implements TicketingSystem {
         this.seatnum = seatnum;
         this.stationnum = stationnum;
         this.threadnum = threadnum;
-        InitializeSeats();
-        //SetTicketSet();
+        this.perRouteSetNum = (this.stationnum - 1) * this.stationnum / 2;
+        this.ticketSetNum = this.routenum * this.perRouteSetNum;
+        this.seatPerCoach = this.coachnum * this.seatnum;
+        SetSets();
     }
 
     public TicketingDS() {
-        InitializeSeats();
-        //SetTicketSet();
+        SetSets();
     }
 
-    private InitializeSeats() {
-        this.seats = new AtomicInteger[this.routenum+1][];
-        int i = 0, j = 0;
-        for (i = 0; i <= this.routenum; i++) {
-            this.seats[i] = new AtomicInteger[this.coachnum * this.seatnum];
-            for (j = 0; j < this.coachnum * this.seatnum; j++) {
-                this.seats[i][j] = new AtomicInteger(0);
+    private void SetSets() {
+        int i = 0;
+        int j = 0;
+        this.ticketSetArray = new LockFreeHashSet<Integer>[this.ticketSetNum];
+        for (i = 0; i < this.ticketSetNum; i++) {
+            this.ticketSetArray[i] = new LockFreeHashSet<Integer>(this.coachnum * this.seatnum); //TO modify Capacity
+            for (j = 0; j < this.seatPerCoach; j++) {
+                this.ticketSetArray[i].add(j);
             }
         }
     }
@@ -46,6 +52,20 @@ public class TicketingDS implements TicketingSystem {
 
     private long getSystemid() {
         return this.systemtid.get();
+    }
+
+    private final int getTicketSetIndex(int route, int departure, int arrival) {
+        return (route - 1) * this.perRouteSetNum + departure +
+            arrival * (arrival - 3) / 2;
+    }
+
+    private final int ticketSetIndexToArrival(int ind) {
+        return map[ind];
+    }
+
+    private final int ticketSetIndexToDeparture(int ind){
+        int y = ticketSetIndexToArrival(ind);
+        return ind - y * (y - 3) / 2;
     }
 
     private final int getSeatIndex(int coach, int seat) {
@@ -60,21 +80,16 @@ public class TicketingDS implements TicketingSystem {
         return ind % this.seatnum + 1;
     }
 
-    
-
     public Ticket buyTicket(String passenger, int route, int departure, int arrival) {
         Ticket ticket = new(Ticket);
-        Ticket.tid = systemtid.getAndIncrement();
+        Ticket.tid = systemtid.getAndAccumulate();
         ticket.passenger = passenger;
         ticket.route = route;
         ticket.departure = departure;
         ticket.arrival = arrival;
-        // Randomly choose a seat to start
-        Random rand = new Random();
-        int seatIndex = rand.nextInt(this.coachnum * this.seatnum);
-
-retry:
-        int status = seats[route][seatIndex].get();
+        LockFreeHashSet<Integer> set = this.ticketSetArray[getTicketSetIndex(route, departure, arrival)];
+        // Ramdomly remove an item, if succeeds, reutrn true
+        int ind;
         if (ind = (int)set.randomPop() >= 0) {
             ticket.coach = seatIndexToCoach(ind);
             ticket.seat = seatIndexToSeat(ind);
