@@ -1,6 +1,7 @@
 package ticketingsystem;
 
 import java.util.concurrent.atomic.*;
+import java.util.*;
 
 public class TicketingDS implements TicketingSystem {
 
@@ -10,11 +11,80 @@ public class TicketingDS implements TicketingSystem {
     private int seatnum = 100;
     private int stationnum = 10;
     private int threadnum = 16;
+    private int intervalnum = 36;
+    private int seatPerTrain = 800;
 
-    protected AtomicInteger[][] seats = null;
+    // ind ---> y
+    protected static int[] remainingTicketSetIndexMap = null;
 
-    protected LockFreeHashSet<Ticket> ticketSet = new LockFreeHashSet<Ticket>(p);
+    protected static AtomicInteger[][] seats = null;
 
+    protected static LockFreeHashSet<Ticket> soldTicketSet = new LockFreeHashSet<Ticket>(p);
+
+    protected static AtomicInteger[][] remainingTickets = null;
+
+    static Thread ticketRegisteringThread;
+
+    enum Operation {
+        BUY, REFUND
+    }
+
+    private class RegisterRequest {
+        Operation type;
+        int route;
+        int departure;
+        int arrival;
+        int status;
+
+        public RegisterRequest(Operation type, int route, int departure, int arrival) {
+            this.type = type;
+            this.route = route;
+            this.departure = departure;
+            this.arrival = arrival;
+            this.status = status;
+        }
+    }
+
+    protected static LockFreeQueue<RegisterRequest> remainingTicketProcessingQueue = 
+        new LockFreeQueue<RegisterRequest>;
+
+
+    // TODO: use correct logic
+    class RemainingTicketProcessingThread implements Runnable {
+        public void run() {
+            while (true) {
+                RegisterRequest request;
+                if (request = remainingTicketProcessingQueue.dequeue()) {
+                    int route = request.route;
+                    int from = request.departure;
+                    int to = request.arrival;
+                    int status = request.status;
+                    if (request.type == Operation.BUY) {
+                        int x, y;
+                        for (x = 1; x <= stationnum - 1; x++) {
+                            for (y = 2; y <= stationnum; y++) {
+                                if (from < y || x < to) {
+                                    remainingTickets[route][getRemainingTicketSetIndex(x,y)].getAndDecrement();
+                                }
+                            }
+                        }
+                    }
+                    else if (request.type == Operation.REFUND) {
+                        int x, y;
+                        int j, k;
+                        for (x = 1; x <= stationnum - 1; x++) {
+                            for (y = 2; y <= stationnum; y++) {
+                                if (from < y || x < to) {
+                                    remainingTickets[route][getRemainingTicketSetIndex(x,y)].getAndDecrement();
+                                }
+                            }
+                        }
+                    }
+                }
+
+            }
+        }
+    }
 
     public TicketingDS(int routenum, int coachnum, int seatnum, int stationnum, int threadnum) {
         this.routenum = routenum;
@@ -22,22 +92,59 @@ public class TicketingDS implements TicketingSystem {
         this.seatnum = seatnum;
         this.stationnum = stationnum;
         this.threadnum = threadnum;
+        this.intervalnum = (this.stationnum - 2) * (this.stationnum - 1) / 2;
+        this.seatPerTrain = this.coachnum * this.seatnum;
         InitializeSeats();
-        //SetTicketSet();
+        SetTicketSet();
+        SetRemainingTicketSetIndexMap();
+        RemainingTicketProcessingThread myThread = new remainingTicketProcessingThread();
+        new Thread(myThread).start();
     }
 
     public TicketingDS() {
         InitializeSeats();
-        //SetTicketSet();
+        SetTicketSet();
+        SetRemainingTicketSetIndexMap();
+    }
+
+    // Every train has (intervalnum) buckets,
+    // initial value of each of which is seatPerTrain
+    protected void SetTicketSet() {
+        int i, j = 0;
+        this.remainingTickets = new AtomicInteger[this.routenum+1][];
+        for (i = 0; i <= this.routenum; i++) {
+            this.remainingTickets[i] = new AtomicInteger[this.intervalnum];
+            for (j = 0; j < this.intervalnum; j++) {
+                this.remainingTickets[i][j] = new AtomicInteger(this.seatPerTrain);
+            }
+        }
+
     }
 
     private InitializeSeats() {
         this.seats = new AtomicInteger[this.routenum+1][];
         int i = 0, j = 0;
         for (i = 0; i <= this.routenum; i++) {
-            this.seats[i] = new AtomicInteger[this.coachnum * this.seatnum];
-            for (j = 0; j < this.coachnum * this.seatnum; j++) {
+            this.seats[i] = new AtomicInteger[this.seatPerTrain];
+            for (j = 0; j < this.seatPerTrain; j++) {
                 this.seats[i][j] = new AtomicInteger(0);
+            }
+        }
+    }
+
+    private SetRemainingTicketSetIndexMap() {
+        this.remainingTicketSetIndexMap = new int[this.intervalnum];
+        int i = 0;
+        int y = 2;
+        int numOfy = 1;
+        int p = 0;
+        for (i = 0; i < this.intervalnum; i++) {
+            this.remainingTicketSetIndexMap[i] = y;
+            p++;
+            if (p >= numOfy) {
+                p = 0;
+                numOfy++;
+                y++;
             }
         }
     }
@@ -60,6 +167,47 @@ public class TicketingDS implements TicketingSystem {
         return ind % this.seatnum + 1;
     }
 
+    private final int getRemainingTicketSetIndex(int departure, int arrival) {
+        return departure + arrival * (arrival - 3) / 2;
+    }
+
+    private final int remainingTicketSetIndexToArrival(int ind) {
+        return map[ind];
+    }
+
+    private final int remainingTicketSetIndexToDeparture(int ind){
+        int y = remainingTicketSetIndexToArrival(ind);
+        return ind - y * (y - 3) / 2;
+    }
+
+    // This function set bits [x, y] to 1 (including x and y)
+    // [32, 31, ..., 2, 1]
+    // x is less than y
+    // x, y belongs to [1,NUM_BITS]
+    public final int setBitsToOne(int num, int x, int y) { // x should be less than y
+        int xBase = 0xffffffff >>> (33 - x);
+        xBase = ~xBase;
+        int yBase = 0xffffffff >>> (32 - y);
+        return num | (xBase & yBase);
+    }
+
+    // This function set bits [x, y] to 0 (including x and y)
+    // x is less than y
+    // x, y belongs to [1,NUM_BITS]
+    public final int setBitsToZero(int num, int x, int y) { // x should be less than y
+        int xBase = 0xffffffff >>> (33 - x);
+        int yBase = 0xffffffff >>> (32 - y);
+        yBase = ~yBase;
+        return num & (xBase | yBase);
+    }
+
+    // From x to y ----> [x,y-x]
+    // if status[x,y-x] == 11...1, return true, else return false
+    public final boolean intervalIsAvailable(int status, int from, int to) {
+        int base = setBitsToOne(0, from, to-from);
+        return status & base == base;
+    }
+
     
 
     public Ticket buyTicket(String passenger, int route, int departure, int arrival) {
@@ -71,26 +219,65 @@ public class TicketingDS implements TicketingSystem {
         ticket.arrival = arrival;
         // Randomly choose a seat to start
         Random rand = new Random();
-        int seatIndex = rand.nextInt(this.coachnum * this.seatnum);
-
+        int initialSeatIndex = rand.nextInt(this.coachnum * this.seatnum);
+        int ind = initialSeatIndex;
 retry:
-        int status = seats[route][seatIndex].get();
-        if (ind = (int)set.randomPop() >= 0) {
-            ticket.coach = seatIndexToCoach(ind);
-            ticket.seat = seatIndexToSeat(ind);
-            RegisterTicket(ticket); // First register in lock-free queue, then a thread handle it in turn
-            EliminateCorrespondingTickets(): //
-            return ticket;
+        int status = seats[route][ind].get();
+        if (intervalIsAvailable(status,departure,arrival)) {
+            // If the status is modified, retry with the same seat
+            if (!compareAndSet(status,setBitsToOne(status,departure,arrival-departure))) {
+                goto retry;
+            }
+            // If succeeds, wrap the ticket with coach and seat
+            else {
+                ticket.coach = seatIndexToCoach(ind);
+                ticket.seat = seatIndexToSeat(ind);
+            }
         }
+        // If not available, choose the next seat and retry
         else {
-            return null;
+            // Saturate
+            if (++ind >= this.coachnum * this.seatnum) {
+                ind = 0;
+            }
+            if (ind != initialSeatIndex) {
+                goto retry;
+            }
+            // If all failed, out
+            else {
+                return null;
+            }
         }
+
+        this.soldTicketSet.add(ticket);
+        RegisterRequest request = new RegisterRequest(Operation.BUY, route, departure, arrival, status);
+        remainingTicketProcessingQueue.enqueue(request);
+
+        return ticket;
     }
 
     public int inquiry(int route, int departure, int arrival) {
-        LockFreeHashSet<Integer> set = this.ticketSetArray[getTicketSetIndex(route, departure, arrival)];
-        return set.setsize;
+        AtomicInteger remaining = this.remainingTickets[route][getRemainingTicketSetIndex(departure,arrival)];
+        return remaining.get();
     }
 
     public boolean refundTicket(Ticket ticket) {
-        Ticket 
+        if (soldTicketSet.remove(ticket)) {
+            int seatIndex = getSeatIndex(ticket.coach,ticket.seat);
+retry:
+            int status = seats[ticket.route][seatIndex].get();
+            if (!compareAndSet(
+                status,setBitsToZero(
+                    status,ticket.departure,ticket.arrival-ticket.departure))) {
+                goto retry;
+            }
+            RegisterRequest request = new RegisterRequest(
+                Operation.REFUND, ticket.route, ticket.departure, ticket.arrival, status);
+            remainingTicketProcessingQueue.enqueue(request);
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+}

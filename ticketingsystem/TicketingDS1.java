@@ -16,6 +16,7 @@ public class TicketingDS implements TicketingSystem {
     private int totalSeatNum = seatPerTrain * routenum;
 
 
+
     AtomicInteger[] trains = null;
     // 31 : 2*stationnum  | 2*stationnum-1 : 0
     //    Unused          | Bitset of status of each station(departure, arrive)
@@ -50,6 +51,7 @@ public class TicketingDS implements TicketingSystem {
         yBase = ~yBase;
         return num & (xBase | yBase);
     }
+
 
     IntBinaryOperator buyUpdate = new IntBinaryOperator() {
         @Override
