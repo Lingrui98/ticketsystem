@@ -65,11 +65,15 @@ public class TicketingDS implements TicketingSystem {
                     if (request.type == Operation.BUY) {
                         int lower = getLowerBoundOfMaximumEmptyInterval(status, from);
                         int upper = getUpperBoundOfMaximumEmptyInterval(status, to);
+                        //System.out.printf("Processing buying..Lower%d, Upper%d\n", lower, upper);
+                        //System.out.flush();
                         int x, y;
                         for (x = lower; x < to; x++) {
                             for (y = from+1; y <= upper+1; y++) {
                                 if (x < y) {
                                     remainingTickets[route][getRemainingTicketSetIndex(x,y)].getAndDecrement();
+                                    //System.out.printf("Decrease of (%d,%d), status 0x%x, from %d, to %d\n", x, y, status, from, to);
+                                    //System.out.flush();
                                 }
                             }
                         }
@@ -77,11 +81,14 @@ public class TicketingDS implements TicketingSystem {
                     else if (request.type == Operation.REFUND) {
                         int lower = getLowerBoundOfMaximumEmptyInterval(status, from);
                         int upper = getUpperBoundOfMaximumEmptyInterval(status, to);
+                        //System.out.printf("Processing refunding..Lower%d, Upper%d\n", lower, upper);
                         int x, y;
                         for (x = lower; x < to; x++) {
                             for (y = from+1; y <= upper+1; y++) {
                                 if (x < y) {
                                     remainingTickets[route][getRemainingTicketSetIndex(x,y)].getAndIncrement();
+                                    //System.out.printf("Increase of (%d,%d), status 0x%x, from %d, to %d\n", x, y, status, from, to);
+                                    //System.out.flush();
                                 }
                             }
                         }
@@ -111,6 +118,7 @@ public class TicketingDS implements TicketingSystem {
         int p = 0;
         for (i = 0; i < this.intervalnum; i++) {
             this.remainingTicketSetIndexMap[i] = y;
+            //System.out.printf("%d ", y);
             p++;
             if (p >= numOfy) {
                 p = 0;
@@ -118,6 +126,7 @@ public class TicketingDS implements TicketingSystem {
                 y++;
             }
         }
+
     }
     
     // Every train has (intervalnum) buckets,
@@ -225,10 +234,10 @@ public class TicketingDS implements TicketingSystem {
         return num & (xBase | yBase);
     }
 
-    // From x to y ----> [x,y-x]
-    // if status[x,y-x] == 00...0, return true, else return false
+    // From x to y ----> [x,y-1]
+    // if status[x,y-1] == 00...0, return true, else return false
     public final boolean intervalIsAvailable(int status, int from, int to) {
-        int base = setBitsToZero(0xffffffff, from, to-from);
+        int base = setBitsToZero(0xffffffff, from, to-1);
         return (status | base) == base;
     }
 
@@ -297,7 +306,7 @@ bretry: while(true)
         if (intervalIsAvailable(status,departure,arrival)) {
             // If the status is modified, retry with the same seat
             if (!seats[route][ind].compareAndSet(
-                status,setBitsToOne(status,departure,arrival-departure))) {
+                status,setBitsToOne(status,departure,arrival-1))) {
                 continue bretry;
             }
             // If succeeds, wrap the ticket with coach and seat
@@ -352,7 +361,7 @@ rretry: while(true)
             int status = seats[ticket.route][seatIndex].get();
             if (!seats[ticket.route][seatIndex].compareAndSet(
                 status,setBitsToZero(
-                    status,ticket.departure,ticket.arrival-ticket.departure))) {
+                    status,ticket.departure,ticket.arrival-1))) {
                 continue rretry;
             }
             RegisterRequest request = new RegisterRequest(
