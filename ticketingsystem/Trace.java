@@ -65,11 +65,11 @@ public class Trace {
             						System.out.println("TicketRefund" + " " + ticket.tid + " " + ticket.passenger + " " + ticket.route + " " + ticket.coach  + " " + ticket.departure + " " + ticket.arrival + " " + ticket.seat);
             						System.out.flush();
             					} else {
-            						System.out.println("ErrOfRefund");
+            						System.out.println("ErrOfRefund, TICKET NOT FOUND!!");
             						System.out.flush();
             					}
             				} else {
-            					System.out.println("ErrOfRefund");
+            					System.out.println("ErrOfRefund, no sold tickets");
         						System.out.flush();
             				}
             			} else if (retpc <= sel && sel < buypc) { // buy ticket
