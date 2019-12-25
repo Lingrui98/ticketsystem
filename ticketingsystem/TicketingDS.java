@@ -57,7 +57,7 @@ public class TicketingDS implements TicketingSystem {
         public void run() {
             while (true) {
                 RegisterRequest request = null;
-                if (request = remainingTicketProcessingQueue.dequeue() != null) {
+                if ((request = remainingTicketProcessingQueue.dequeue()) != null) {
                     int route = request.route;
                     int from = request.departure;
                     int to = request.arrival;
@@ -339,4 +339,5 @@ rretry:
 }
 
         }
+    }
 }
