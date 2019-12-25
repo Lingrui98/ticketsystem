@@ -50,7 +50,7 @@ public class TicketingDS implements TicketingSystem {
     }
 
     protected static LockFreeQueue<RegisterRequest> remainingTicketProcessingQueue = 
-        new LockFreeQueue<RegisterRequest>;
+        new (LockFreeQueue<RegisterRequest>);
 
 
     // TODO: use correct logic
@@ -88,9 +88,51 @@ public class TicketingDS implements TicketingSystem {
                         }
                     }
                 }
-
+                
             }
         }
+    }
+
+    private void InitializeSeats() {
+        this.seats = new AtomicInteger[this.routenum+1][];
+        int i = 0, j = 0;
+        for (i = 0; i <= this.routenum; i++) {
+            this.seats[i] = new AtomicInteger[this.seatPerTrain];
+            for (j = 0; j < this.seatPerTrain; j++) {
+                this.seats[i][j] = new AtomicInteger(0);
+            }
+        }
+    }
+
+    private void SetRemainingTicketSetIndexMap() {
+        this.remainingTicketSetIndexMap = new int[this.intervalnum];
+        int i = 0;
+        int y = 2;
+        int numOfy = 1;
+        int p = 0;
+        for (i = 0; i < this.intervalnum; i++) {
+            this.remainingTicketSetIndexMap[i] = y;
+            p++;
+            if (p >= numOfy) {
+                p = 0;
+                numOfy++;
+                y++;
+            }
+        }
+    }
+    
+    // Every train has (intervalnum) buckets,
+    // initial value of each of which is seatPerTrain
+    protected void SetTicketSet() {
+        int i, j = 0;
+        this.remainingTickets = new AtomicInteger[this.routenum+1][];
+        for (i = 0; i <= this.routenum; i++) {
+            this.remainingTickets[i] = new AtomicInteger[this.intervalnum];
+            for (j = 0; j < this.intervalnum; j++) {
+                this.remainingTickets[i][j] = new AtomicInteger(this.seatPerTrain);
+            }
+        }
+
     }
 
     public TicketingDS(int routenum, int coachnum, int seatnum, int stationnum, int threadnum) {
@@ -116,49 +158,7 @@ public class TicketingDS implements TicketingSystem {
         new Thread(myThread).start();
     }
 
-    // Every train has (intervalnum) buckets,
-    // initial value of each of which is seatPerTrain
-    protected void SetTicketSet() {
-        int i, j = 0;
-        this.remainingTickets = new AtomicInteger[this.routenum+1][];
-        for (i = 0; i <= this.routenum; i++) {
-            this.remainingTickets[i] = new AtomicInteger[this.intervalnum];
-            for (j = 0; j < this.intervalnum; j++) {
-                this.remainingTickets[i][j] = new AtomicInteger(this.seatPerTrain);
-            }
-        }
-
-    }
-
-    private InitializeSeats() {
-        this.seats = new AtomicInteger[this.routenum+1][];
-        int i = 0, j = 0;
-        for (i = 0; i <= this.routenum; i++) {
-            this.seats[i] = new AtomicInteger[this.seatPerTrain];
-            for (j = 0; j < this.seatPerTrain; j++) {
-                this.seats[i][j] = new AtomicInteger(0);
-            }
-        }
-    }
-
-    private SetRemainingTicketSetIndexMap() {
-        this.remainingTicketSetIndexMap = new int[this.intervalnum];
-        int i = 0;
-        int y = 2;
-        int numOfy = 1;
-        int p = 0;
-        for (i = 0; i < this.intervalnum; i++) {
-            this.remainingTicketSetIndexMap[i] = y;
-            p++;
-            if (p >= numOfy) {
-                p = 0;
-                numOfy++;
-                y++;
-            }
-        }
-    }
-
-    private AtomicLong systemtid = 0;
+    private AtomicLong systemtid = new (AtomicLong(0));
 
     private long getSystemid() {
         return this.systemtid.get();
@@ -181,7 +181,7 @@ public class TicketingDS implements TicketingSystem {
     }
 
     private final int remainingTicketSetIndexToArrival(int ind) {
-        return map[ind];
+        return remainingTicketSetIndexMap[ind];
     }
 
     private final int remainingTicketSetIndexToDeparture(int ind){
@@ -214,7 +214,7 @@ public class TicketingDS implements TicketingSystem {
     // if status[x,y-x] == 00...0, return true, else return false
     public final boolean intervalIsAvailable(int status, int from, int to) {
         int base = setBitsToZero(0xffffffff, from, to-from);
-        return status | base == base;
+        return (status | base) == base;
     }
 
     // Check if the bit pos in status is 1
@@ -223,7 +223,7 @@ public class TicketingDS implements TicketingSystem {
     }
 
     // Returning minimum bit in status of the whole empty interval
-    public final int getLowerBoundOfMaximumInterval(int status, int from) {
+    public final int getLowerBoundOfMaximumEmptyInterval(int status, int from) {
         if (from == 1) {
             return from;
         }
@@ -265,7 +265,7 @@ public class TicketingDS implements TicketingSystem {
     
 
     public Ticket buyTicket(String passenger, int route, int departure, int arrival) {
-        Ticket ticket = new(Ticket);
+        Ticket ticket = new(Ticket());
         Ticket.tid = systemtid.getAndIncrement();
         ticket.passenger = passenger;
         ticket.route = route;
@@ -276,11 +276,12 @@ public class TicketingDS implements TicketingSystem {
         int initialSeatIndex = rand.nextInt(this.coachnum * this.seatnum);
         int ind = initialSeatIndex;
 bretry:
+{
         int status = seats[route][ind].get();
         if (intervalIsAvailable(status,departure,arrival)) {
             // If the status is modified, retry with the same seat
             if (!compareAndSet(status,setBitsToOne(status,departure,arrival-departure))) {
-                goto retry;
+                break bretry;
             }
             // If succeeds, wrap the ticket with coach and seat
             else {
@@ -295,13 +296,14 @@ bretry:
                 ind = 0;
             }
             if (ind != initialSeatIndex) {
-                goto retry;
+                break bretry;
             }
             // If all failed, out
             else {
                 return null;
             }
         }
+}
 
         this.soldTicketSet.add(ticket);
         RegisterRequest request = new RegisterRequest(Operation.BUY, route, departure, arrival, status);
@@ -319,16 +321,18 @@ bretry:
         if (soldTicketSet.remove(ticket)) {
             int seatIndex = getSeatIndex(ticket.coach,ticket.seat);
 rretry:
-            int status = seats[ticket.route][seatIndex].get();
-            if (!compareAndSet(
-                status,setBitsToZero(
-                    status,ticket.departure,ticket.arrival-ticket.departure))) {
-                goto retry;
-            }
-            RegisterRequest request = new RegisterRequest(
-                Operation.REFUND, ticket.route, ticket.departure, ticket.arrival, status);
-            remainingTicketProcessingQueue.enqueue(request);
-            return true;
+{
+        int status = seats[ticket.route][seatIndex].get();
+        if (!compareAndSet(
+            status,setBitsToZero(
+                status,ticket.departure,ticket.arrival-ticket.departure))) {
+            break rretry;
+        }
+        RegisterRequest request = new RegisterRequest(
+            Operation.REFUND, ticket.route, ticket.departure, ticket.arrival, status);
+        remainingTicketProcessingQueue.enqueue(request);
+        return true;
+}
         }
         else {
             return false;
