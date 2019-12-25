@@ -14,7 +14,7 @@ class TicketWithHash extends Ticket {
     
     @Override
     public int hashCode() {
-        return tid;
+        return (int) tid;
     }
 }
 
