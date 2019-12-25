@@ -29,9 +29,9 @@ public class Trace {
 	final static int seatnum = 100; // seat is allocated from 1 to 20
 	final static int stationnum = 10; // station is designed from 1 to 5
 
-	final static int testnum = 4000;
-	final static int retpc = 30; // return ticket operation is 10% percent
-	final static int buypc = 60; // buy ticket operation is 30% percent
+	final static int testnum = 500000;
+	final static int retpc = 5; // return ticket operation is 10% percent
+	final static int buypc = 20; // buy ticket operation is 30% percent
 	final static int inqpc = 100; //inquiry ticket operation is 60% percent
 	
 	static String passengerName() {
