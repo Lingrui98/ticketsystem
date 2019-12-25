@@ -82,6 +82,7 @@ public class TicketingDS implements TicketingSystem {
                         int lower = getLowerBoundOfMaximumEmptyInterval(status, from);
                         int upper = getUpperBoundOfMaximumEmptyInterval(status, to);
                         //System.out.printf("Processing refunding..Lower%d, Upper%d\n", lower, upper);
+                        //System.out.flush();
                         int x, y;
                         for (x = lower; x < to; x++) {
                             for (y = from+1; y <= upper+1; y++) {
@@ -335,7 +336,9 @@ bretry: while(true)
         }
 }
 
-        this.soldTicketSet.add(ticket);
+        if (!this.soldTicketSet.add(ticket)) {
+            System.out.println("Error adding sold ticket to hashset");
+        }
         RegisterRequest request = new RegisterRequest(Operation.BUY, route, departure, arrival, status);
         remainingTicketProcessingQueue.enqueue(request);
 
