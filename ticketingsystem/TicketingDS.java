@@ -13,7 +13,7 @@ class TicketWithHash extends Ticket {
     int arrival;
     
     @Override
-    public static int hashCode() {
+    public int hashCode() {
         return tid;
     }
 }
@@ -35,7 +35,7 @@ public class TicketingDS implements TicketingSystem {
 
     protected AtomicInteger[][] seats = null;
 
-    protected LockFreeHashSet<TicketWithHash> soldTicketSet = new LockFreeHashSet<Ticket>(0xffffff);
+    protected LockFreeHashSet<TicketWithHash> soldTicketSet = new LockFreeHashSet<TicketWithHash>(0xffffff);
 
     protected AtomicInteger[][] remainingTickets = null;
 
