@@ -23,7 +23,7 @@ class ThreadId {
 }
 
 public class Trace {
-	final static int threadnum = 4; // concurrent thread number
+	final static int threadnum = 1; // concurrent thread number
 	final static int routenum = 8; // route is designed from 1 to 3
 	final static int coachnum = 16; // coach is arranged from 1 to 5
 	final static int seatnum = 100; // seat is allocated from 1 to 20
@@ -65,7 +65,7 @@ public class Trace {
             						System.out.println("TicketRefund" + " " + ticket.tid + " " + ticket.passenger + " " + ticket.route + " " + ticket.coach  + " " + ticket.departure + " " + ticket.arrival + " " + ticket.seat);
             						System.out.flush();
             					} else {
-            						System.out.println("ErrOfRefund, TICKET NOT FOUND!!");
+            						System.out.println("ErrOfRefund, TICKET NOT FOUND!!, ticket is " + ticket + ThreadId.get());
             						System.out.flush();
             					}
             				} else {
@@ -79,7 +79,7 @@ public class Trace {
             				int arrival = departure + rand.nextInt(stationnum - departure) + 1; // arrival is always greater than departure
             				if ((ticket = tds.buyTicket(passenger, route, departure, arrival)) != null) {
             					soldTicket.add(ticket);
-            					System.out.println("TicketBought" + " " + ticket.tid + " " + ticket.passenger + " " + ticket.route + " " + ticket.coach + " " + ticket.departure + " " + ticket.arrival + " " + ticket.seat);
+            					System.out.println("TicketBought" + " " + ticket.tid + " " + ticket.passenger + " " + ticket.route + " " + ticket.coach + " " + ticket.departure + " " + ticket.arrival + " " + ticket.seat + ThreadId.get());
         						System.out.flush();
             				} else {
             					System.out.println("TicketSoldOut" + " " + route+ " " + departure+ " " + arrival);
@@ -106,5 +106,6 @@ public class Trace {
 	    for (int i = 0; i< threadnum; i++) {
 	    	threads[i].join();
 	    }		
+        System.out.println("Final systemtid is " + tds.systemtid.get());
 	}
 }

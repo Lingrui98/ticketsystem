@@ -3,20 +3,20 @@ package ticketingsystem;
 import java.util.concurrent.atomic.*;
 import java.util.*;
 
-class TicketWithHash extends Ticket {
-	long tid;
-	String passenger;
-	int route;
-	int coach;
-	int seat;
-	int departure;
-    int arrival;
-    
-    @Override
-    public int hashCode() {
-        return (int) tid;
-    }
-}
+//class TicketWithHash extends Ticket {
+//	long tid;
+//	String passenger;
+//	int route;
+//	int coach;
+//	int seat;
+//	int departure;
+//  int arrival;
+//  @Override
+//  public int hashCode() {
+//        System.out.println("tid is " + tid + " int tid is" + (int)tid);
+//        return (int) tid;
+//    }
+//}
 
 
 public class TicketingDS implements TicketingSystem {
@@ -35,7 +35,7 @@ public class TicketingDS implements TicketingSystem {
 
     protected AtomicInteger[][] seats = null;
 
-    protected LockFreeHashSet<TicketWithHash> soldTicketSet = new LockFreeHashSet<TicketWithHash>(0xffffff);
+    protected LockFreeHashSet<Ticket> soldTicketSet = new LockFreeHashSet<Ticket>(0xffffff);
 
     protected AtomicInteger[][] remainingTickets = null;
 
@@ -193,7 +193,7 @@ public class TicketingDS implements TicketingSystem {
     }
 
 
-    private AtomicLong systemtid = new AtomicLong(0);
+    AtomicLong systemtid = new AtomicLong(0);
 
     private long getSystemid() {
         return this.systemtid.get();
@@ -351,7 +351,7 @@ bretry: while(true)
             }
         }
 }
-        TicketWithHash soldTicket = new TicketWithHash();
+        Ticket soldTicket = new Ticket();
 
         soldTicket.tid = ticket.tid;
         soldTicket.passenger = ticket.passenger;
@@ -378,7 +378,7 @@ bretry: while(true)
     }
 
     public boolean refundTicket(Ticket ticket) {
-        TicketWithHash soldTicket = new TicketWithHash();
+        Ticket soldTicket = new Ticket();
 
         soldTicket.tid = ticket.tid;
         soldTicket.passenger = ticket.passenger;

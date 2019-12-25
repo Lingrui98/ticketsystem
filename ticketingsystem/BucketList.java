@@ -11,6 +11,7 @@ package ticketingsystem;
 
 import java.util.concurrent.atomic.*;
 import java.util.Iterator;
+import java.util.*;
 
 /**
  * @param T
@@ -18,10 +19,10 @@ import java.util.Iterator;
  * @author Maurice Herlihy
  */
 public class BucketList<T> implements BucketSet<T> {
-	static final int WORD_SIZE = 30;
+	static final int WORD_SIZE = 26;
 	static final int LO_MASK = 0x00000001;
-	static final int HI_MASK = 0x20000000;
-	static final int MASK = 0x3FFFFFFF;
+	static final int HI_MASK = 0x00800000;
+	static final int MASK = 0x00FFFFFF;
 	Node head,tail;
 	protected Node freeNode = null;
 
@@ -54,6 +55,7 @@ public class BucketList<T> implements BucketSet<T> {
 
 	public boolean add(T x) {
 		int key = makeRegularKey(x);
+        System.out.println("Trying to add key " + key);
 		boolean splice;
 		while (true) {
 			// find predecessor and current entries
@@ -66,6 +68,7 @@ public class BucketList<T> implements BucketSet<T> {
 			if (curr.key == key) {
 				pred.ref.decrementAndGet();
 				curr.ref.decrementAndGet();
+                System.out.println("Key present, adding failed");
 				return false;
 			} else {
 				// splice in new entry
@@ -83,6 +86,7 @@ public class BucketList<T> implements BucketSet<T> {
 				splice = pred.next.compareAndSet(curr, entry, currMark, currMark + 1);
 				if (splice){
 					curr.ref.decrementAndGet();
+                    System.out.println("key " + key + " added");
 					return true;
 				}
 				else{
@@ -105,6 +109,7 @@ public class BucketList<T> implements BucketSet<T> {
 
 			// is the key present?
 			if (curr.key != key) {
+                System.out.println("key " + key +" not present, failed to remove");
 				pred.ref.decrementAndGet();
 				curr.ref.decrementAndGet();
 				return false;
