@@ -40,7 +40,7 @@ public class TicketingDS implements TicketingSystem {
         int arrival;
         int status;
 
-        public RegisterRequest(Operation type, int route, int departure, int arrival) {
+        public RegisterRequest(Operation type, int route, int departure, int arrival, int status) {
             this.type = type;
             this.route = route;
             this.departure = departure;
@@ -49,12 +49,11 @@ public class TicketingDS implements TicketingSystem {
         }
     }
 
-    protected static LockFreeQueue<RegisterRequest> remainingTicketProcessingQueue = 
-        new (LockFreeQueue<RegisterRequest>);
+    protected static LockFreeQueue<RegisterRequest> remainingTicketProcessingQueue = new LockFreeQueue<RegisterRequest>();
 
 
     // TODO: use correct logic
-    class RemainingTicketProcessingThread implements Runnable {
+    public class RemainingTicketProcessingThread implements Runnable {
         public void run() {
             while (true) {
                 RegisterRequest request;
@@ -146,7 +145,7 @@ public class TicketingDS implements TicketingSystem {
         InitializeSeats();
         SetTicketSet();
         SetRemainingTicketSetIndexMap();
-        RemainingTicketProcessingThread myThread = new remainingTicketProcessingThread();
+        RemainingTicketProcessingThread myThread = new RemainingTicketProcessingThread();
         new Thread(myThread).start();
     }
 
@@ -154,11 +153,11 @@ public class TicketingDS implements TicketingSystem {
         InitializeSeats();
         SetTicketSet();
         SetRemainingTicketSetIndexMap();
-        RemainingTicketProcessingThread myThread = new remainingTicketProcessingThread();
+        RemainingTicketProcessingThread myThread = new RemainingTicketProcessingThread();
         new Thread(myThread).start();
     }
 
-    private AtomicLong systemtid = new (AtomicLong(0));
+    private AtomicLong systemtid = new AtomicLong(0);
 
     private long getSystemid() {
         return this.systemtid.get();
@@ -265,7 +264,7 @@ public class TicketingDS implements TicketingSystem {
     
 
     public Ticket buyTicket(String passenger, int route, int departure, int arrival) {
-        Ticket ticket = new(Ticket());
+        Ticket ticket = new Ticket;
         Ticket.tid = systemtid.getAndIncrement();
         ticket.passenger = passenger;
         ticket.route = route;
@@ -280,7 +279,8 @@ bretry:
         int status = seats[route][ind].get();
         if (intervalIsAvailable(status,departure,arrival)) {
             // If the status is modified, retry with the same seat
-            if (!compareAndSet(status,setBitsToOne(status,departure,arrival-departure))) {
+            if (!seats[route][ind].compareAndSet(
+                status,setBitsToOne(status,departure,arrival-departure))) {
                 break bretry;
             }
             // If succeeds, wrap the ticket with coach and seat
@@ -323,7 +323,7 @@ bretry:
 rretry:
 {
         int status = seats[ticket.route][seatIndex].get();
-        if (!compareAndSet(
+        if (!seats[ticket.route][seatIndex].compareAndSet(
             status,setBitsToZero(
                 status,ticket.departure,ticket.arrival-ticket.departure))) {
             break rretry;
