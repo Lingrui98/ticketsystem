@@ -24,10 +24,10 @@ class ThreadId {
 
 public class Trace {
 	final static int threadnum = 4; // concurrent thread number
-	final static int routenum = 3; // route is designed from 1 to 3
-	final static int coachnum = 3; // coach is arranged from 1 to 5
-	final static int seatnum = 3; // seat is allocated from 1 to 20
-	final static int stationnum = 3; // station is designed from 1 to 5
+	final static int routenum = 8; // route is designed from 1 to 3
+	final static int coachnum = 16; // coach is arranged from 1 to 5
+	final static int seatnum = 100; // seat is allocated from 1 to 20
+	final static int stationnum = 10; // station is designed from 1 to 5
 
 	final static int testnum = 4000;
 	final static int retpc = 30; // return ticket operation is 10% percent

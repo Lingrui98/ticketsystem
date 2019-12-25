@@ -134,6 +134,11 @@ public class TicketingDS implements TicketingSystem {
 
     }
 
+    public void printParams() {
+        System.out.printf("%d routes, %d coaches, %d seats, %d stations\n", 
+                this.routenum, this.coachnum, this.seatnum, this.stationnum);
+    }
+
     public TicketingDS(int routenum, int coachnum, int seatnum, int stationnum, int threadnum) {
         this.routenum = routenum;
         this.coachnum = coachnum;
@@ -142,6 +147,7 @@ public class TicketingDS implements TicketingSystem {
         this.threadnum = threadnum;
         this.intervalnum = (this.stationnum - 2) * (this.stationnum - 1) / 2;
         this.seatPerTrain = this.coachnum * this.seatnum;
+        printParams();
         InitializeSeats();
         SetTicketSet();
         SetRemainingTicketSetIndexMap();
@@ -150,6 +156,7 @@ public class TicketingDS implements TicketingSystem {
     }
 
     public TicketingDS() {
+        printParams();
         InitializeSeats();
         SetTicketSet();
         SetRemainingTicketSetIndexMap();
@@ -265,7 +272,7 @@ public class TicketingDS implements TicketingSystem {
 
     public Ticket buyTicket(String passenger, int route, int departure, int arrival) {
         Ticket ticket = new Ticket();
-        Ticket.tid = this.systemtid.getAndIncrement();
+        ticket.tid = this.systemtid.getAndIncrement();
         ticket.passenger = passenger;
         ticket.route = route;
         ticket.departure = departure;
@@ -339,5 +346,6 @@ rretry:
 }
 
         }
+    return false; //never reaching here
     }
 }
