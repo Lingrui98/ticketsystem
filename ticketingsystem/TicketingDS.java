@@ -19,7 +19,7 @@ public class TicketingDS implements TicketingSystem {
 
     protected static AtomicInteger[][] seats = null;
 
-    protected static LockFreeHashSet<Ticket> soldTicketSet = new LockFreeHashSet<Ticket>(p);
+    protected static LockFreeHashSet<Ticket> soldTicketSet = new LockFreeHashSet<Ticket>(0xffff);
 
     protected static AtomicInteger[][] remainingTickets = null;
 
