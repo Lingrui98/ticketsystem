@@ -95,6 +95,7 @@ public class Trace {
     						System.out.flush();  
     						         			
             			}
+                        //System.out.println("Thread"+ThreadId.get()+"the "+i+"th operation done");
             		}
 
                 }

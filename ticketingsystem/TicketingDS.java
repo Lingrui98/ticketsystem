@@ -11,7 +11,7 @@ public class TicketingDS implements TicketingSystem {
     private int seatnum = 100;
     private int stationnum = 10;
     private int threadnum = 16;
-    private int intervalnum = 36;
+    private int intervalnum = 45;
     private int seatPerTrain = 800;
 
     // ind ---> y
@@ -53,7 +53,7 @@ public class TicketingDS implements TicketingSystem {
 
 
     // TODO: use correct logic
-    public class RemainingTicketProcessingThread implements Runnable {
+    public class RemainingTicketProcessingThread extends Thread {
         public void run() {
             while (true) {
                 RegisterRequest request = null;
@@ -145,14 +145,15 @@ public class TicketingDS implements TicketingSystem {
         this.seatnum = seatnum;
         this.stationnum = stationnum;
         this.threadnum = threadnum;
-        this.intervalnum = (this.stationnum - 2) * (this.stationnum - 1) / 2;
+        this.intervalnum = this.stationnum * (this.stationnum - 1) / 2;
         this.seatPerTrain = this.coachnum * this.seatnum;
         printParams();
         InitializeSeats();
         SetTicketSet();
         SetRemainingTicketSetIndexMap();
-        RemainingTicketProcessingThread myThread = new RemainingTicketProcessingThread();
-        new Thread(myThread).start();
+        this.ticketRegisteringThread = new RemainingTicketProcessingThread(); 
+        this.ticketRegisteringThread.setDaemon(true);
+        this.ticketRegisteringThread.start();
     }
 
     public TicketingDS() {
@@ -160,9 +161,11 @@ public class TicketingDS implements TicketingSystem {
         InitializeSeats();
         SetTicketSet();
         SetRemainingTicketSetIndexMap();
-        RemainingTicketProcessingThread myThread = new RemainingTicketProcessingThread();
-        new Thread(myThread).start();
+        this.ticketRegisteringThread = new RemainingTicketProcessingThread(); 
+        this.ticketRegisteringThread.setDaemon(true);
+        this.ticketRegisteringThread.start();
     }
+
 
     private AtomicLong systemtid = new AtomicLong(0);
 
@@ -171,15 +174,21 @@ public class TicketingDS implements TicketingSystem {
     }
 
     private final int getSeatIndex(int coach, int seat) {
-        return (coach - 1) * this.seatnum + seat - 1;
+        int ind = (coach - 1) * this.seatnum + seat - 1;
+        //System.out.printf("getSeatIndex: coach = %d, seat = %d, ind is %d\n",coach, seat, ind);
+        return ind;
     }
 
     private final int seatIndexToCoach(int ind) {
-        return (int) (ind / this.seatnum) + 1;
+        int coach = (int) (ind / this.seatnum) + 1;
+        //System.out.printf("seatIndexToCoach: ind = %d, coach = %d\n", ind, coach);
+        return coach;
     }
 
     private final int seatIndexToSeat(int ind) {
-        return ind % this.seatnum + 1;
+        int seat = ind % this.seatnum + 1;
+        //System.out.printf("seatIndexToSeat: ind = %d, seat = %d\n", ind, seat);
+        return seat;
     }
 
     private final int getRemainingTicketSetIndex(int departure, int arrival) {
@@ -282,19 +291,23 @@ public class TicketingDS implements TicketingSystem {
         int initialSeatIndex = rand.nextInt(this.coachnum * this.seatnum);
         int ind = initialSeatIndex;
         int status;
-bretry:
+bretry: while(true)
 {
         status = seats[route][ind].get();
         if (intervalIsAvailable(status,departure,arrival)) {
             // If the status is modified, retry with the same seat
             if (!seats[route][ind].compareAndSet(
                 status,setBitsToOne(status,departure,arrival-departure))) {
-                break bretry;
+                continue bretry;
             }
             // If succeeds, wrap the ticket with coach and seat
             else {
                 ticket.coach = seatIndexToCoach(ind);
                 ticket.seat = seatIndexToSeat(ind);
+                //System.out.println("ind"+ind);
+                //System.out.println("Success, buying ticket of " + ticket);
+                //System.out.flush();
+                break bretry;
             }
         }
         // If not available, choose the next seat and retry
@@ -304,7 +317,7 @@ bretry:
                 ind = 0;
             }
             if (ind != initialSeatIndex) {
-                break bretry;
+                continue bretry;
             }
             // If all failed, out
             else {
@@ -317,6 +330,8 @@ bretry:
         RegisterRequest request = new RegisterRequest(Operation.BUY, route, departure, arrival, status);
         remainingTicketProcessingQueue.enqueue(request);
 
+        //System.out.println("Buying ticket of " + ticket);
+        //System.out.flush();
         return ticket;
     }
 
@@ -330,14 +345,15 @@ bretry:
             return false;
         }
         else {
-            int seatIndex = getSeatIndex(ticket.coach,ticket.seat);
-rretry:
+            int seatIndex;
+rretry: while(true)
 {
+            seatIndex = getSeatIndex(ticket.coach,ticket.seat);
             int status = seats[ticket.route][seatIndex].get();
             if (!seats[ticket.route][seatIndex].compareAndSet(
                 status,setBitsToZero(
                     status,ticket.departure,ticket.arrival-ticket.departure))) {
-                break rretry;
+                continue rretry;
             }
             RegisterRequest request = new RegisterRequest(
                 Operation.REFUND, ticket.route, ticket.departure, ticket.arrival, status);
@@ -346,6 +362,5 @@ rretry:
 }
 
         }
-    return false; //never reaching here
     }
 }
