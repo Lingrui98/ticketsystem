@@ -3,6 +3,22 @@ package ticketingsystem;
 import java.util.concurrent.atomic.*;
 import java.util.*;
 
+class TicketWithHash extends Ticket {
+	long tid;
+	String passenger;
+	int route;
+	int coach;
+	int seat;
+	int departure;
+    int arrival;
+    
+    @Override
+    public static int hashCode() {
+        return tid;
+    }
+}
+
+
 public class TicketingDS implements TicketingSystem {
 
 	//ToDo
@@ -19,7 +35,7 @@ public class TicketingDS implements TicketingSystem {
 
     protected AtomicInteger[][] seats = null;
 
-    protected LockFreeHashSet<Ticket> soldTicketSet = new LockFreeHashSet<Ticket>(0xfffff);
+    protected LockFreeHashSet<TicketWithHash> soldTicketSet = new LockFreeHashSet<Ticket>(0xffffff);
 
     protected AtomicInteger[][] remainingTickets = null;
 
@@ -335,8 +351,17 @@ bretry: while(true)
             }
         }
 }
+        TicketWithHash soldTicket = new TicketWithHash();
 
-        if (!this.soldTicketSet.add(ticket)) {
+        soldTicket.tid = ticket.tid;
+        soldTicket.passenger = ticket.passenger;
+        soldTicket.route = ticket.route;
+        soldTicket.departure = ticket.departure;
+        soldTicket.arrival = ticket.arrival;
+        soldTicket.coach = ticket.coach;
+        soldTicket.seat = ticket.seat;
+
+        if (!this.soldTicketSet.add(soldTicket)) {
             System.out.println("Error adding sold ticket to hashset");
         }
         RegisterRequest request = new RegisterRequest(Operation.BUY, route, departure, arrival, status);
@@ -353,7 +378,17 @@ bretry: while(true)
     }
 
     public boolean refundTicket(Ticket ticket) {
-        if (!soldTicketSet.remove(ticket)) {
+        TicketWithHash soldTicket = new TicketWithHash();
+
+        soldTicket.tid = ticket.tid;
+        soldTicket.passenger = ticket.passenger;
+        soldTicket.route = ticket.route;
+        soldTicket.departure = ticket.departure;
+        soldTicket.arrival = ticket.arrival;
+        soldTicket.coach = ticket.coach;
+        soldTicket.seat = ticket.seat;
+
+        if (!soldTicketSet.remove(soldTicket)) {
             return false;
         }
         else {

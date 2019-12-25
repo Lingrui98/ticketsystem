@@ -8,16 +8,6 @@ class Ticket{
 	int seat;
 	int departure;
 	int arrival;
-
-    public String toString() {
-        return "[tid=" + tid +
-               ",passenger=" + passenger +
-               ",route=" + route +
-               ",coach=" + coach +
-               ",seat" + seat +
-               ",departure=" + departure +
-               ",arrival=" + arrival;
-    }
 }
 
 
