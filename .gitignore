@@ -1,6 +1,8 @@
 ./*.swp
 ticketingsystem/*.swp
 ticketingsystem/*.class
+ticketingsystem/Trace.java
 Trace
 trace
 *.json
+./.gitignore
