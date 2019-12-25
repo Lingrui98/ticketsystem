@@ -18,10 +18,10 @@ import java.util.Iterator;
  * @author Maurice Herlihy
  */
 public class BucketList<T> implements BucketSet<T> {
-	static final int WORD_SIZE = 26;
+	static final int WORD_SIZE = 30;
 	static final int LO_MASK = 0x00000001;
-	static final int HI_MASK = 0x02000000;
-	static final int MASK = 0x03FFFFFF;
+	static final int HI_MASK = 0x20000000;
+	static final int MASK = 0x3FFFFFFF;
 	Node head,tail;
 	protected Node freeNode = null;
 
