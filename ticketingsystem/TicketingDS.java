@@ -56,8 +56,8 @@ public class TicketingDS implements TicketingSystem {
     public class RemainingTicketProcessingThread implements Runnable {
         public void run() {
             while (true) {
-                RegisterRequest request;
-                if (request = remainingTicketProcessingQueue.dequeue()) {
+                RegisterRequest request = null;
+                if (request = remainingTicketProcessingQueue.dequeue() != null) {
                     int route = request.route;
                     int from = request.departure;
                     int to = request.arrival;
@@ -264,8 +264,8 @@ public class TicketingDS implements TicketingSystem {
     
 
     public Ticket buyTicket(String passenger, int route, int departure, int arrival) {
-        Ticket ticket = new Ticket;
-        Ticket.tid = systemtid.getAndIncrement();
+        Ticket ticket = new Ticket();
+        Ticket.tid = this.systemtid.getAndIncrement();
         ticket.passenger = passenger;
         ticket.route = route;
         ticket.departure = departure;
@@ -274,9 +274,10 @@ public class TicketingDS implements TicketingSystem {
         Random rand = new Random();
         int initialSeatIndex = rand.nextInt(this.coachnum * this.seatnum);
         int ind = initialSeatIndex;
+        int status;
 bretry:
 {
-        int status = seats[route][ind].get();
+        status = seats[route][ind].get();
         if (intervalIsAvailable(status,departure,arrival)) {
             // If the status is modified, retry with the same seat
             if (!seats[route][ind].compareAndSet(
@@ -318,24 +319,24 @@ bretry:
     }
 
     public boolean refundTicket(Ticket ticket) {
-        if (soldTicketSet.remove(ticket)) {
+        if (!soldTicketSet.remove(ticket)) {
+            return false;
+        }
+        else {
             int seatIndex = getSeatIndex(ticket.coach,ticket.seat);
 rretry:
 {
-        int status = seats[ticket.route][seatIndex].get();
-        if (!seats[ticket.route][seatIndex].compareAndSet(
-            status,setBitsToZero(
-                status,ticket.departure,ticket.arrival-ticket.departure))) {
-            break rretry;
-        }
-        RegisterRequest request = new RegisterRequest(
-            Operation.REFUND, ticket.route, ticket.departure, ticket.arrival, status);
-        remainingTicketProcessingQueue.enqueue(request);
-        return true;
+            int status = seats[ticket.route][seatIndex].get();
+            if (!seats[ticket.route][seatIndex].compareAndSet(
+                status,setBitsToZero(
+                    status,ticket.departure,ticket.arrival-ticket.departure))) {
+                break rretry;
+            }
+            RegisterRequest request = new RegisterRequest(
+                Operation.REFUND, ticket.route, ticket.departure, ticket.arrival, status);
+            remainingTicketProcessingQueue.enqueue(request);
+            return true;
 }
+
         }
-        else {
-            return false;
-        }
-    }
 }

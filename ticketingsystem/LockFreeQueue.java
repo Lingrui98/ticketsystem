@@ -4,7 +4,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class LockFreeQueue<T> {
     private static class Node<E> {
-        final E value;
+        E value;
         volatile Node<E> next;
 
         Node(E value) {
