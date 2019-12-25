@@ -15,15 +15,15 @@ public class TicketingDS implements TicketingSystem {
     private int seatPerTrain = 800;
 
     // ind ---> y
-    protected static int[] remainingTicketSetIndexMap = null;
+    protected int[] remainingTicketSetIndexMap = null;
 
-    protected static AtomicInteger[][] seats = null;
+    protected AtomicInteger[][] seats = null;
 
-    protected static LockFreeHashSet<Ticket> soldTicketSet = new LockFreeHashSet<Ticket>(0xffff);
+    protected LockFreeHashSet<Ticket> soldTicketSet = new LockFreeHashSet<Ticket>(0xffff);
 
-    protected static AtomicInteger[][] remainingTickets = null;
+    protected AtomicInteger[][] remainingTickets = null;
 
-    static Thread ticketRegisteringThread;
+    Thread ticketRegisteringThread;
 
     enum Operation {
         BUY, REFUND;
@@ -49,7 +49,7 @@ public class TicketingDS implements TicketingSystem {
         }
     }
 
-    protected static LockFreeQueue<RegisterRequest> remainingTicketProcessingQueue = new LockFreeQueue<RegisterRequest>();
+    protected LockFreeQueue<RegisterRequest> remainingTicketProcessingQueue = new LockFreeQueue<RegisterRequest>();
 
 
     // TODO: use correct logic
