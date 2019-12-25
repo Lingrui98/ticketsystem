@@ -3,20 +3,18 @@ package ticketingsystem;
 import java.util.concurrent.atomic.*;
 import java.util.*;
 
-//class TicketWithHash extends Ticket {
-//	long tid;
-//	String passenger;
-//	int route;
-//	int coach;
-//	int seat;
-//	int departure;
-//  int arrival;
-//  @Override
-//  public int hashCode() {
-//        System.out.println("tid is " + tid + " int tid is" + (int)tid);
-//        return (int) tid;
-//    }
-//}
+class TicketWithHash {
+    Ticket ticket;
+
+    public TicketWithHash() {
+        this.ticket = new Ticket();
+    }
+
+    public int hashCode() {
+        System.out.println("tid is " + this.ticket.tid + " int tid is" + (int)this.ticket.tid);
+        return (int) this.ticket.tid;
+    }
+}
 
 
 public class TicketingDS implements TicketingSystem {
@@ -35,7 +33,7 @@ public class TicketingDS implements TicketingSystem {
 
     protected AtomicInteger[][] seats = null;
 
-    protected LockFreeHashSet<Ticket> soldTicketSet = new LockFreeHashSet<Ticket>(0xffffff);
+    protected LockFreeHashSet<TicketWithHash> soldTicketSet = new LockFreeHashSet<TicketWithHash>(0xfffff);
 
     protected AtomicInteger[][] remainingTickets = null;
 
@@ -351,15 +349,15 @@ bretry: while(true)
             }
         }
 }
-        Ticket soldTicket = new Ticket();
+        TicketWithHash soldTicket = new TicketWithHash();
 
-        soldTicket.tid = ticket.tid;
-        soldTicket.passenger = ticket.passenger;
-        soldTicket.route = ticket.route;
-        soldTicket.departure = ticket.departure;
-        soldTicket.arrival = ticket.arrival;
-        soldTicket.coach = ticket.coach;
-        soldTicket.seat = ticket.seat;
+        soldTicket.ticket.tid = ticket.tid;
+        soldTicket.ticket.passenger = ticket.passenger;
+        soldTicket.ticket.route = ticket.route;
+        soldTicket.ticket.departure = ticket.departure;
+        soldTicket.ticket.arrival = ticket.arrival;
+        soldTicket.ticket.coach = ticket.coach;
+        soldTicket.ticket.seat = ticket.seat;
 
         if (!this.soldTicketSet.add(soldTicket)) {
             System.out.println("Error adding sold ticket to hashset");
@@ -378,15 +376,15 @@ bretry: while(true)
     }
 
     public boolean refundTicket(Ticket ticket) {
-        Ticket soldTicket = new Ticket();
+        TicketWithHash soldTicket = new TicketWithHash();
 
-        soldTicket.tid = ticket.tid;
-        soldTicket.passenger = ticket.passenger;
-        soldTicket.route = ticket.route;
-        soldTicket.departure = ticket.departure;
-        soldTicket.arrival = ticket.arrival;
-        soldTicket.coach = ticket.coach;
-        soldTicket.seat = ticket.seat;
+        soldTicket.ticket.tid = ticket.tid;
+        soldTicket.ticket.passenger = ticket.passenger;
+        soldTicket.ticket.route = ticket.route;
+        soldTicket.ticket.departure = ticket.departure;
+        soldTicket.ticket.arrival = ticket.arrival;
+        soldTicket.ticket.coach = ticket.coach;
+        soldTicket.ticket.seat = ticket.seat;
 
         if (!soldTicketSet.remove(soldTicket)) {
             return false;
