@@ -26,7 +26,11 @@ public class TicketingDS implements TicketingSystem {
     static Thread ticketRegisteringThread;
 
     enum Operation {
-        BUY, REFUND
+        BUY, REFUND;
+    }
+
+    enum Status {
+        EMPTY, NOTAVAILABLE;
     }
 
     private class RegisterRequest {
@@ -60,22 +64,25 @@ public class TicketingDS implements TicketingSystem {
                     int to = request.arrival;
                     int status = request.status;
                     if (request.type == Operation.BUY) {
+                        int lower = getLowerBoundOfMaximumEmptyInterval(status, from);
+                        int upper = getUpperBoundOfMaximumEmptyInterval(status, to);
                         int x, y;
-                        for (x = 1; x <= stationnum - 1; x++) {
-                            for (y = 2; y <= stationnum; y++) {
-                                if (from < y || x < to) {
+                        for (x = lower; x < to; x++) {
+                            for (y = from+1; y <= upper+1; y++) {
+                                if (x < y) {
                                     remainingTickets[route][getRemainingTicketSetIndex(x,y)].getAndDecrement();
                                 }
                             }
                         }
                     }
                     else if (request.type == Operation.REFUND) {
+                        int lower = getLowerBoundOfMaximumEmptyInterval(status, from);
+                        int upper = getUpperBoundOfMaximumEmptyInterval(status, to);
                         int x, y;
-                        int j, k;
-                        for (x = 1; x <= stationnum - 1; x++) {
-                            for (y = 2; y <= stationnum; y++) {
-                                if (from < y || x < to) {
-                                    remainingTickets[route][getRemainingTicketSetIndex(x,y)].getAndDecrement();
+                        for (x = lower; x < to; x++) {
+                            for (y = from+1; y <= upper+1; y++) {
+                                if (x < y) {
+                                    remainingTickets[route][getRemainingTicketSetIndex(x,y)].getAndIncrement();
                                 }
                             }
                         }
@@ -105,6 +112,8 @@ public class TicketingDS implements TicketingSystem {
         InitializeSeats();
         SetTicketSet();
         SetRemainingTicketSetIndexMap();
+        RemainingTicketProcessingThread myThread = new remainingTicketProcessingThread();
+        new Thread(myThread).start();
     }
 
     // Every train has (intervalnum) buckets,
@@ -202,10 +211,55 @@ public class TicketingDS implements TicketingSystem {
     }
 
     // From x to y ----> [x,y-x]
-    // if status[x,y-x] == 11...1, return true, else return false
+    // if status[x,y-x] == 00...0, return true, else return false
     public final boolean intervalIsAvailable(int status, int from, int to) {
-        int base = setBitsToOne(0, from, to-from);
-        return status & base == base;
+        int base = setBitsToZero(0xffffffff, from, to-from);
+        return status | base == base;
+    }
+
+    // Check if the bit pos in status is 1
+    public final boolean checkGivenBit(int status, int pos) {
+        return !intervalIsAvailable(status,pos,pos+1);
+    }
+
+    // Returning minimum bit in status of the whole empty interval
+    public final int getLowerBoundOfMaximumInterval(int status, int from) {
+        if (from == 1) {
+            return from;
+        }
+        else {
+            int i;
+            int r = from;
+            for (i = from-1; i >= 1; i--) {
+                if (checkGivenBit(status,i)) { // Not empty
+                    break;
+                }
+                else {
+                    r = i;
+                }
+            }
+            return r;
+        }
+    }
+
+    // Returning maximum bit in status of the whole empty interval
+    public final int getUpperBoundOfMaximumEmptyInterval(int status, int to) {
+        if (to == stationnum) {
+            return to-1;
+        }
+        else {
+            int i;
+            int r = to-1;
+            for (i = to; i < stationnum; i++) {
+                if (checkGivenBit(status,i)) { // Not empty
+                    break;
+                }
+                else {
+                    r = i;
+                }
+            }
+            return r;
+        }
     }
 
     
@@ -221,7 +275,7 @@ public class TicketingDS implements TicketingSystem {
         Random rand = new Random();
         int initialSeatIndex = rand.nextInt(this.coachnum * this.seatnum);
         int ind = initialSeatIndex;
-retry:
+bretry:
         int status = seats[route][ind].get();
         if (intervalIsAvailable(status,departure,arrival)) {
             // If the status is modified, retry with the same seat
@@ -264,7 +318,7 @@ retry:
     public boolean refundTicket(Ticket ticket) {
         if (soldTicketSet.remove(ticket)) {
             int seatIndex = getSeatIndex(ticket.coach,ticket.seat);
-retry:
+rretry:
             int status = seats[ticket.route][seatIndex].get();
             if (!compareAndSet(
                 status,setBitsToZero(
