@@ -68,7 +68,7 @@ public class BucketList<T> implements BucketSet<T> {
 			if (curr.key == key) {
 				pred.ref.decrementAndGet();
 				curr.ref.decrementAndGet();
-                System.out.println("Key present, adding failed");
+                System.out.println("Key" + key + " present, adding failed");
 				return false;
 			} else {
 				// splice in new entry
@@ -117,6 +117,7 @@ public class BucketList<T> implements BucketSet<T> {
 				if (pred.next.attemptStamp(curr, -1)) {
 					pred.ref.decrementAndGet();
 					curr.ref.decrementAndGet();
+                    System.out.println("key " + key +" removed");
 					return true;
 				}
 				pred.ref.decrementAndGet();
@@ -176,6 +177,8 @@ public class BucketList<T> implements BucketSet<T> {
 
 	public int makeRegularKey(T x) {
 		int code = x.hashCode() & MASK; // take 3 lowest bytes
+        System.out.println("In makeRegularKey, hashCode is " + x.hashCode() +
+                "key is " + reverse(code | HI_MASK));
 		return reverse(code | HI_MASK);
 	}
 

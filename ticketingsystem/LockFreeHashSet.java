@@ -95,11 +95,13 @@ public class LockFreeHashSet<T> {
     BucketList<T> b = getBucketList(myBucket);
 
     if (!b.remove(x)) {
-      System.out.println("Failed to remove");
+      System.out.println("Failed to remove, checking if in set...");
+      boolean in = b.contains(x);
+      System.out.println("Is " + (in ? " " : "not ") + "in set" );
       return false;		// she's not there
 
     }
-    int setSizeNow = setSize.decrementAndGet();
+    int setSizeNow = setSize.get();
     System.out.println("After removing, set size is " + setSizeNow);
 
     return true;
