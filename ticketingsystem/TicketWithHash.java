@@ -10,12 +10,12 @@ public class TicketWithHash {
     }
 
     public int hashCode() {
-        System.out.println("tid is " + this.ticket.tid + " int tid is" + (int)this.ticket.tid);
+        // System.out.println("tid is " + this.ticket.tid + " int tid is" + (int)this.ticket.tid);
         return (int) this.ticket.tid;
     }
 
     public boolean equals(Object other) {
-        System.out.println("equals invoked");
+        // System.out.println("equals invoked");
 
         if (other == this)
             return true;
