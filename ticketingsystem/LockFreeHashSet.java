@@ -57,6 +57,7 @@ public class LockFreeHashSet<T> {
 
     int myBucket = Math.abs(BucketList.hashCode(x) % bucketSize.get());
 
+    System.out.println("Adding ticket " + x + "\nmyBucket is " + myBucket);
     BucketList<T> b = getBucketList(myBucket);
 
     if (!b.add(x)){
@@ -91,18 +92,19 @@ public class LockFreeHashSet<T> {
   public boolean remove(T x) {
 
     int myBucket = Math.abs(BucketList.hashCode(x) % bucketSize.get());
+    System.out.println("Removing ticket " + x + "\nmyBucket is " + myBucket);
 
     BucketList<T> b = getBucketList(myBucket);
 
     if (!b.remove(x)) {
       System.out.println("Failed to remove, checking if in set...");
-      boolean in = b.contains(x);
-      System.out.println("Is " + (in ? " " : "not ") + "in set" );
+//      boolean in = b.contains(x);
+//      System.out.println("Is " + (in ? " " : "not ") + "in set" );
       return false;		// she's not there
 
     }
-    int setSizeNow = setSize.get();
-    System.out.println("After removing, set size is " + setSizeNow);
+//    int setSizeNow = setSize.get();
+//    System.out.println("After removing, set size is " + setSizeNow);
 
     return true;
 

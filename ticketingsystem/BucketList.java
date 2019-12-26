@@ -19,7 +19,7 @@ import java.util.*;
  * @author Maurice Herlihy
  */
 public class BucketList<T> implements BucketSet<T> {
-	static final int WORD_SIZE = 26;
+	static final int WORD_SIZE = 25;
 	static final int LO_MASK = 0x00000001;
 	static final int HI_MASK = 0x00800000;
 	static final int MASK = 0x00FFFFFF;
@@ -62,7 +62,7 @@ public class BucketList<T> implements BucketSet<T> {
 			Window window = find(head, key);
 			Node pred = window.pred;
 			Node curr = window.curr;
-			int currMark = pred.next.getStamp();		
+			int currMark = pred.next.getStamp();
 			Node entry;
 			// is the key present?
 			if (curr.key == key) {
@@ -78,8 +78,8 @@ public class BucketList<T> implements BucketSet<T> {
 					entry=freeNode;
 					freeNode = freeNode.next.getReference();
 				}
-				
-				
+
+
 				curr.ref.incrementAndGet();
 				entry.next.set(curr, currMark);
 				entry.ref.set(1);
@@ -195,7 +195,7 @@ public class BucketList<T> implements BucketSet<T> {
 		public int key;
 		public T value;
 		public AtomicInteger ref = new AtomicInteger(0);
-		
+
 		AtomicStampedReference<Node> next;
 
 		Node(int key, T object) { // usual constructor
@@ -217,17 +217,17 @@ public class BucketList<T> implements BucketSet<T> {
 				temp = this.next.get(cMarked);
 			}
 			Node curr = temp;
-			
+
 			while (cMarked[0] == -1) {
 				Node temp2 = curr.next.getReference();
 				if(temp2 == null || temp2.ref.incrementAndGet() == 1){
-					
+
 					temp = this.next.get(cMarked);
 					while(temp.ref.incrementAndGet() ==1){
 						temp = this.next.get(cMarked);
 					}
 					curr = temp;
-					
+
 					continue;
 				}
 				Node succ = temp2;
@@ -235,29 +235,29 @@ public class BucketList<T> implements BucketSet<T> {
 				succ.ref.incrementAndGet();
 				if(this.next.compareAndSet(curr, succ, -1, sMarked[0])) {
 					curr.ref.decrementAndGet();
-					
+
 					if (curr.ref.decrementAndGet() == 0) {
 						curr.next.set(null, -100);
-					
+
 						if( freeNode!=null )
 							curr.next.set(freeNode, -100);
-						
+
 						freeNode=curr;
-							
+
 					}
-					
+
 				} else {
 					succ.ref.decrementAndGet();
 				}
-				
-				
+
+
 				Node temp3 = this.next.get(cMarked);
 				while(temp3.ref.incrementAndGet() ==1){
 					temp3 = this.next.get(cMarked);
 				}
 				curr.ref.decrementAndGet();
 				curr = temp3;
-				
+
 				succ.ref.decrementAndGet();
 			}
 			return curr;

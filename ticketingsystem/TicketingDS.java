@@ -19,7 +19,7 @@ public class TicketingDS implements TicketingSystem {
 
     protected AtomicInteger[][] seats = null;
 
-    protected LockFreeHashSet<TicketWithHash> soldTicketSet = new LockFreeHashSet<TicketWithHash>(0xfffff);
+    protected SOSet<TicketWithHash> soldTicketSet = new SOSet<TicketWithHash>(0xfffff);
 
     protected AtomicInteger[][] remainingTickets = null;
 
@@ -177,7 +177,7 @@ public class TicketingDS implements TicketingSystem {
     }
 
 
-    AtomicLong systemtid = new AtomicLong(0);
+    AtomicLong systemtid = new AtomicLong(2);
 
     private long getSystemid() {
         return this.systemtid.get();

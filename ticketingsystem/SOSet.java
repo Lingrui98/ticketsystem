@@ -18,11 +18,15 @@ public class SOSet<T> {
         setSize = new AtomicInteger(0);
     }
 
+    public String toString() {
+        return this.table[0].toString();
+    }
+
     public boolean add(T x) {
         int hash = x.hashCode();
+        //System.out.println("Adding" + x);
         int bucket = hash % tableSize.get();
         int key = makeRegularKey(hash);
-        
         LockFreeList<T> list = getLockFreeList(bucket);
         if (!list.add(x, key))
             return false;
@@ -30,30 +34,33 @@ public class SOSet<T> {
         return true;
     }
 
-    private final resizeCheck() {
+    private final void resizeCheck() {
         int setSizeNow = setSize.incrementAndGet();
         int tableSizeNow = tableSize.get();
         if (setSizeNow / (double)tableSizeNow > THRESHOLD)
             tableSize.compareAndSet(tableSizeNow, 2 * tableSizeNow);
-        System.out.println("After adding, set size is " + setSizeNow);
-        return true;
+        //System.out.println("After adding, set size is " + setSizeNow);
     }
 
     public boolean remove(T x) {
-        int bucket = x.hashCode() % tableSize.get();
+        int hash = x.hashCode();
+        int bucket = hash % tableSize.get();
+        //System.out.println("Found bucket " + bucket);
         LockFreeList<T> l = getLockFreeList(bucket);
-
-        if (!l.remove(x)) {
-            System.out.println("Failed to remove");
+        int key = makeRegularKey(hash);
+        if (!l.remove(key)) {
+            //System.out.println("Failed to remove");
             return false;
         }
         return true;
     }
 
     public boolean contains(T x) {
-        int bucket = x.hashCode() % tableSize.get();
+        int hash = x.hashCode();
+        int bucket = hash % tableSize.get();
+        int key = makeRegularKey(hash);
         LockFreeList<T> l = getLockFreeList(bucket);
-        return l.contains(x);
+        return l.contains(key);
     }
     
     private LockFreeList<T> getLockFreeList(int bucket) {
@@ -63,6 +70,7 @@ public class SOSet<T> {
     }
 
     private void initializeBucket(int bucket) {
+        //System.out.println("Initializing bucket " + bucket);
         int parent = getParent(bucket);
         if (table[parent] == null)
             initializeBucket(parent);

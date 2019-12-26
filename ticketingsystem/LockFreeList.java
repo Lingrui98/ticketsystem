@@ -7,13 +7,29 @@ import java.util.*;
 public class LockFreeList<T> {
     Node head;
     Node tail;
-    
+
+    public String toString() {
+        int i = this.head.key;
+        int n = 1;
+        Node p = head;
+        String res = "";
+        while (i < Integer.MAX_VALUE) {
+            res += ("Node " + n + ": key=" + i + " value=" + p.value + "\n");
+            p = p.next.getReference();
+            if (p == null)
+                break;
+            n++;
+            i = p.key;
+        }
+        return res;
+    }
+
     public LockFreeList() {
         this.head = new Node(0);
         this.tail = new Node(Integer.MAX_VALUE);
         this.head.next = new AtomicMarkableReference<Node>(tail, false);
     }
-    
+
     // For sentinel
     public LockFreeList(LockFreeList<T> parent, int key) {
         boolean splice;
@@ -29,25 +45,27 @@ public class LockFreeList<T> {
                 Node node = new Node(key);
                 node.next.set(pred.next.getReference(), false);
                 splice = pred.next.compareAndSet(curr, node, false, false);
-                if (splice)
+                if (splice){
+                    this.head = node;
                     break;
+                }
                 else
                     continue;
             }
         }
 	}
-    
+
     private class Node {
         public int key;
         public T value;
         AtomicMarkableReference<Node> next;
-    
+
         Node(T x, int key) {
             this.key = key;
             this.value = x;
             this.next = new AtomicMarkableReference<LockFreeList<T>.Node>(null, false);
         }
-    
+
         Node(int key) {
             this.key = key;
             this.next = new AtomicMarkableReference<LockFreeList<T>.Node>(null, false);
@@ -129,7 +147,7 @@ public class LockFreeList<T> {
         boolean[] marked = {false};
         Node curr = this.head;
         while (curr.key < key)
-            curr = curr.next;
+            curr = curr.next.getReference();
         Node succ = curr.next.get(marked);
         return (curr.key == key && !marked[0]);
     }

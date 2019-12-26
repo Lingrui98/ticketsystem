@@ -32,4 +32,8 @@ public class TicketWithHash {
                ticket.departure == temp.ticket.departure &&
                ticket.arrival == temp.ticket.arrival;
     }
+
+    public String toString() {
+        return ticket.toString();
+    }
 }
