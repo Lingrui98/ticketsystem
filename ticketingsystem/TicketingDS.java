@@ -221,8 +221,8 @@ public class TicketingDS implements TicketingSystem {
     public final int setBitsToOne(int num, int x, int y) { // x should be less than y
         int xBase = 0xffffffff << (x - 1);
         int yBase = 0xffffffff >>> (32 - y);
-        System.out.printf("num is 0x%x, from %d, to %d, is set one to 0x%x\n",
-         num, x, y+1, num | (xBase & yBase));    
+        // System.out.printf("num is 0x%x, from %d, to %d, is set one to 0x%x\n",
+        //  num, x, y+1, num | (xBase & yBase));    
         return num | (xBase & yBase);
     }
 
@@ -230,7 +230,7 @@ public class TicketingDS implements TicketingSystem {
     // x is less than y
     // x, y belongs to [1,NUM_BITS]
     public final int setBitsToZero(int num, int x, int y) { // x should be less than y
-        int xBase = x != 1 ? 0xffffffff >>> (33 - x) : 0;
+        int xBase = (int)(0xffffffffL >>> (33 - x));
         int yBase = 0xffffffff  << y;
         // System.out.printf("num is 0x%x, from %d, to %d, is set zero to 0x%x\n",
         //  num, x, y+1, num & (xBase | yBase)); 
