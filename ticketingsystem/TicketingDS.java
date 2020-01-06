@@ -19,7 +19,7 @@ public class TicketingDS implements TicketingSystem {
 
     protected AtomicInteger[][] seats = null;
 
-    protected SOSet<TicketWithHash> soldTicketSet = new SOSet<TicketWithHash>(0xfffff);
+    protected SOSet<TicketWithHash> soldTicketSet = new SOSet<TicketWithHash>(0xffffff);
 
     protected AtomicInteger[][] remainingTickets = null;
 
