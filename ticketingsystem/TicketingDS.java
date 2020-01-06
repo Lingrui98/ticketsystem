@@ -219,9 +219,10 @@ public class TicketingDS implements TicketingSystem {
     // x is less than y
     // x, y belongs to [1,NUM_BITS]
     public final int setBitsToOne(int num, int x, int y) { // x should be less than y
-        int xBase = 0xffffffff >>> (33 - x);
-        xBase = ~xBase;
+        int xBase = 0xffffffff << (x - 1);
         int yBase = 0xffffffff >>> (32 - y);
+        System.out.printf("num is 0x%x, from %d, to %d, is set one to 0x%x\n",
+         num, x, y+1, num | (xBase & yBase));    
         return num | (xBase & yBase);
     }
 
@@ -229,9 +230,11 @@ public class TicketingDS implements TicketingSystem {
     // x is less than y
     // x, y belongs to [1,NUM_BITS]
     public final int setBitsToZero(int num, int x, int y) { // x should be less than y
-        int xBase = 0xffffffff >>> (33 - x);
-        int yBase = 0xffffffff >>> (32 - y);
-        yBase = ~yBase;
+        int xBase = x != 1 ? 0xffffffff >>> (33 - x) : 0;
+        int yBase = 0xffffffff  << y;
+        // System.out.printf("num is 0x%x, from %d, to %d, is set zero to 0x%x\n",
+        //  num, x, y+1, num & (xBase | yBase)); 
+        // yBase = ~yBase;
         return num & (xBase | yBase);
     }
 
@@ -239,6 +242,12 @@ public class TicketingDS implements TicketingSystem {
     // if status[x,y-1] == 00...0, return true, else return false
     public final boolean intervalIsAvailable(int status, int from, int to) {
         int base = setBitsToZero(0xffffffff, from, to-1);
+        // int xBase = 0xffffffff >>> (33 - from);
+        // int yBase = 0xffffffff << (to - 1);
+        // int base = 0xffffffff & (xBase | yBase);
+        boolean res = (status | base) == base;
+        // System.out.printf("status is 0x%x, base is 0x%x, from %d, to %d, is %s available\n",
+        //  status, base, from, to, res ? "" : "not");
         return (status | base) == base;
     }
 
