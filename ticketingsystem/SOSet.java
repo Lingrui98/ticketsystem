@@ -52,6 +52,7 @@ public class SOSet<T> {
             //System.out.println("Failed to remove");
             return false;
         }
+        setSize.getAndDecrement();
         return true;
     }
 
@@ -61,6 +62,10 @@ public class SOSet<T> {
         int key = makeRegularKey(hash);
         LockFreeList<T> l = getLockFreeList(bucket);
         return l.contains(key);
+    }
+
+    public boolean isEmpty() {
+        return setSize.get() == 0;
     }
     
     private LockFreeList<T> getLockFreeList(int bucket) {
