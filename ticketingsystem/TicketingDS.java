@@ -454,20 +454,20 @@ public class TicketingDS implements TicketingSystem {
         int ind;
         int initialSeatIndex;
         // Integer indFromPotentialQueue = this.potentialQueue[route].dequeue();
-        boolean proposalTaken = false;
+        // boolean proposalTaken = false;
         Integer indFromProposalSet = 
             this.ticketProposalSet[route][getRemainingTicketSetIndex(departure, arrival)].propose();
-        boolean proposalValid = false;
+        // boolean proposalValid = false;
         if (indFromProposalSet == null) {
             Random rand = new Random();
             initialSeatIndex = rand.nextInt(this.coachnum * this.seatnum);
             ind = initialSeatIndex;
-            System.out.printf("Proposal null!\n");
+            // System.out.printf("Proposal null!\n");
         }
         else {
             initialSeatIndex = indFromProposalSet.intValue();
             ind = initialSeatIndex;
-            proposalValid = true;
+            // proposalValid = true;
         }
         // if (indFromPotentialQueue == null) {
         //     Random rand = new Random();
@@ -488,11 +488,11 @@ bretry: while(true)
             // If the status is modified, retry with the same seat
             if (!seats[route][ind].compareAndSet(
                 status,setBitsToOne(status,departure,arrival-1))) {
-                if (proposalValid){
-                    proposalValid = false;
-                    proposalTaken = false;
-                    System.out.printf("Proposal not taken!\n");
-                }
+                // if (proposalValid){
+                //     proposalValid = false;
+                //     proposalTaken = false;
+                //     System.out.printf("Proposal not taken!\n");
+                // }
                 continue bretry;
             }
             // If succeeds, wrap the ticket with coach and seat
@@ -502,9 +502,9 @@ bretry: while(true)
                 //System.out.println("ind"+ind);
                 //System.out.println("Success, buying ticket of " + ticket);
                 //System.out.flush();
-                if (proposalValid) {
-                    proposalTaken = true;
-                }
+                // if (proposalValid) {
+                //     proposalTaken = true;
+                // }
                 break bretry;
             }
         }
@@ -536,9 +536,9 @@ bretry: while(true)
         if (!this.soldTicketSet.add(soldTicket)) {
             System.out.println("Error adding sold ticket to hashset");
         }
-        if (proposalTaken && proposalValid)
-            System.out.printf("Proposal of route %d, seat %d, coach %d taken! tid %d from %d to %d\n", 
-                ticket.route, ticket.seat, ticket.coach, ticket.tid, ticket.departure, ticket.arrival);
+        // if (proposalTaken && proposalValid)
+        //     System.out.printf("Proposal of route %d, seat %d, coach %d taken! tid %d from %d to %d\n", 
+        //         ticket.route, ticket.seat, ticket.coach, ticket.tid, ticket.departure, ticket.arrival);
         RegisterRequest request = new RegisterRequest(Operation.BUY, route, departure, arrival, status, ind);
         proposalSetProcessingQueue.enqueue(request);
         remainingTicketProcessingQueue.enqueue(request);
