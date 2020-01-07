@@ -1,6 +1,6 @@
 package ticketingsystem;
 
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.*;
 import java.util.concurrent.*;
 import java.util.*;
 
@@ -10,12 +10,24 @@ public class SOSet<T> {
     protected AtomicInteger setSize;
     protected AtomicInteger size;
     protected Random rand = new Random();
+    protected boolean isPropose = false;
+    protected AtomicReference<T> proposal = new AtomicReference<T>(null);
     private static final double THRESHOLD = 4.0;
 	static final int WORD_SIZE = 32;
 
     public SOSet(int capacity) {
         table = (LockFreeList<T>[]) new LockFreeList[capacity];
-        table[0] = new LockFreeList<T>();
+        table[0] = new LockFreeList<T>(isPropose);
+        tableSize = new AtomicInteger(2);
+        setSize = new AtomicInteger(0);
+        size = new AtomicInteger(0);
+    }
+
+    public SOSet(int capacity, boolean isPropose) {
+        this.isPropose = isPropose;
+        proposal = new AtomicReference<T>(null);
+        table = (LockFreeList<T>[]) new LockFreeList[capacity];
+        table[0] = new LockFreeList<T>(isPropose);
         tableSize = new AtomicInteger(2);
         setSize = new AtomicInteger(0);
         size = new AtomicInteger(0);
@@ -72,17 +84,22 @@ public class SOSet<T> {
         return size.get() == 0;
     }
 
-    public T randomGet() {
-        if (isEmpty()) return null;
+    public T propose() {
+        return proposal.get();
+        // if (isEmpty()) return null;
         // Random start(maybe not a good idea)
-        int bucket = rand.nextInt(tableSize.get());
-        LockFreeList<T> l = getLockFreeList(bucket);
-        T proposal = l.propose();
-        if (proposal != null)
-            return proposal;
-        else {
-            return table[0].propose();
-        }
+        // int bucket = rand.nextInt(tableSize.get());
+        // LockFreeList<T> l = getLockFreeList(bucket);
+        // T proposal = l.propose();
+        // if (proposal != null)
+        //     return proposal;
+        // else {
+        //     return table[0].propose();
+        // }
+    }
+
+    public void setProposal() {
+        proposal.set(table[0].getProposal());
     }
     
     private LockFreeList<T> getLockFreeList(int bucket) {

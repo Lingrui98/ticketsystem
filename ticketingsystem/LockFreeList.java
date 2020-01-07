@@ -8,7 +8,8 @@ public class LockFreeList<T> {
     Node head;
     Node tail;
 
-    Node proposal = null;
+    AtomicReference<T> proposal = new AtomicReference(null);
+    boolean isPropose = false;
 
     public String toString() {
         int i = this.head.key;
@@ -30,6 +31,13 @@ public class LockFreeList<T> {
         this.head = new Node(0);
         this.tail = new Node(Integer.MAX_VALUE);
         this.head.next = new AtomicMarkableReference<Node>(tail, false);
+    }
+
+    public LockFreeList(boolean isPropose) {
+        this.head = new Node(0);
+        this.tail = new Node(Integer.MAX_VALUE);
+        this.head.next = new AtomicMarkableReference<Node>(tail, false);
+        this.isPropose = isPropose;
     }
 
     // For sentinel
@@ -141,9 +149,9 @@ public class LockFreeList<T> {
                 Node node = new Node(x, key);
                 node.next.set(curr, false);
                 if (pred.next.compareAndSet(curr, node, false, false)){
-                    if (proposal == null) {
-                        proposal = node; // propose when add
-                    }
+                    // if (isPropose && proposal == null) {
+                    //     proposal = node; // propose when add
+                    // }
                     return true;
                 }
             }
@@ -156,35 +164,57 @@ public class LockFreeList<T> {
         while (curr.key < key)
             curr = curr.next.getReference();
         Node succ = curr.next.get(marked);
-        boolean res = curr.key == key && !marked[0];
-        if (res) proposal = curr; // propose if contains
-        return res;
+        // boolean res = curr.key == key && !marked[0];
+        // if (isPropose && res) proposal = curr; // propose if contains
+        return curr.key == key && !marked[0];
     }
 
     private final boolean isRegular(int key) {
-        return (key % 2 == 1) && key < Integer.MAX_VALUE;
+        return (key % 2 == 1) && key < Integer.MAX_VALUE && key > 0;
     }
 
-    // Not lock free, propose a valid object from the list
-    public T propose() {
-        if (proposal == null) return null;
+
+    public T getProposal() {
         boolean[] marked = {false};
-        Node curr = this.proposal;
-        proposal = null;
-        Node succ = curr.next.get(marked);
-        if (!marked[0] && isRegular(curr.key)) {
+        Node curr = head.next.get(marked);
+        if (curr == null)
+            return null;
+        if (!marked[0] && isRegular(curr.key))
             return curr.value;
-        }
-        int maxDepth = 4;
-        int d = 0;
-        while (d++ < maxDepth && isRegular(succ.key)) {
-                curr = succ;
-                succ = curr.next.get(marked);
-                if (!marked[0])
-                    return curr.value;
-        }
-        return null;
 
+        Node succ;
+        do {
+            while (!isRegular(curr.key)) {
+                curr = curr.next.getReference();
+                if (curr == null) return null;
+            }
+            succ = curr.next.get(marked);
+        } while (marked[0]);
+        return curr.value;
     }
+
+    // Not lock free, propose an object from the list (could be invalid)
+    // public T propose() {
+    //     Node prop = proposal.get()
+    //     if (prop == null) return null;
+    //     proposal.set(null);
+    //     return prop;
+    //     // boolean[] marked = {false};
+    //     // Node curr = prop;
+    //     // Node succ = curr.next.get(marked);
+    //     // if (!marked[0] && isRegular(curr.key)) {
+    //     //     return curr.value;
+    //     // }
+    //     // int maxDepth = 4;
+    //     // int d = 0;
+    //     // while (d++ < maxDepth && isRegular(succ.key)) {
+    //     //         curr = succ;
+    //     //         succ = curr.next.get(marked);
+    //     //         if (!marked[0])
+    //     //             return curr.value;
+    //     // }
+    //     // return null;
+
+    // }
 
 }

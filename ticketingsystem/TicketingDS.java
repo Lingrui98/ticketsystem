@@ -19,7 +19,7 @@ public class TicketingDS implements TicketingSystem {
 
     protected AtomicInteger[][] seats = null;
 
-    protected SOSet<TicketWithHash> soldTicketSet = new SOSet<TicketWithHash>(0xffffff);
+    protected SOSet<TicketWithHash> soldTicketSet = new SOSet<TicketWithHash>(0xfffff);
 
     protected AtomicInteger[][] remainingTickets = null;
 
@@ -35,12 +35,22 @@ public class TicketingDS implements TicketingSystem {
 
     Thread proposalDealingThread;
 
+    Thread proposalingThread;
+
     enum Operation {
         BUY, REFUND;
     }
 
     enum Status {
         EMPTY, NOTAVAILABLE;
+    }
+
+    public int getRouteNum() {
+        return routenum;
+    }
+
+    public int getIntervalNum() {
+        return intervalnum;
     }
 
     private class RegisterRequest {
@@ -61,6 +71,18 @@ public class TicketingDS implements TicketingSystem {
         }
     }
 
+    @Override
+    protected void finalize() {
+        System.out.println("TicketingDS is destroyed!");
+        this.remainingTicketSetIndexMap = null;
+        this.seats = null;
+        this.soldTicketSet = null;
+        this.remainingTickets = null;
+        this.remainingTicketProcessingQueue = null;
+        this.potentialQueue = null;
+        this.ticketProposalSet = null;
+        this.proposalSetProcessingQueue = null;
+    }
 
 
     // TODO: use correct logic
@@ -159,6 +181,21 @@ public class TicketingDS implements TicketingSystem {
         }
     }
 
+   // TODO: use correct logic
+    public class proposalSettingThread extends Thread {
+        public void run() {
+            int routenum = getRouteNum();
+            int intervalnum = getIntervalNum();
+            while (true) {
+                for (int r = 1; r <= routenum; r++) {
+                    for (int interval = 0; interval < intervalnum; interval++) {
+                        ticketProposalSet[r][interval].setProposal();
+                    }
+                }                
+            }
+        }
+    }
+
     private void InitializeSeats() {
         this.seats = new AtomicInteger[this.routenum+1][];
         int i = 0, j = 0;
@@ -206,6 +243,16 @@ public class TicketingDS implements TicketingSystem {
     public void printParams() {
         System.out.printf("%d routes, %d coaches, %d seats, %d stations\n", 
                 this.routenum, this.coachnum, this.seatnum, this.stationnum);
+        // System.out.printf("-----------------------------------\n");
+        // System.out.printf("Space consumed:\n");
+        // System.out.printf("remainingTicketSetIndexMap: %d\n", sizeof(remainingTicketSetIndexMap));
+        // System.out.printf("seats: %d\n", sizeof(seats));
+        // System.out.printf("soldTicketSet: %d\n", sizeof(soldTicketSet));
+        // System.out.printf("remainingTickets: %d\n", sizeof(remainingTickets));
+        // System.out.printf("remainingTicketProcessingQueue: %d\n", sizeof(remainingTicketProcessingQueue));
+        // System.out.printf("potentialQueue: %d\n", sizeof(potentialQueue));
+        // System.out.printf("ticketProposalSet: %d\n", sizeof(ticketProposalSet));
+        // System.out.printf("proposalSetProcessingQueue: %d\n", sizeof(proposalSetProcessingQueue));
     }
 
     private void initPotentialQueue() {
@@ -223,7 +270,7 @@ public class TicketingDS implements TicketingSystem {
         for (int i = 0; i <= this.routenum; i++) {
             this.ticketProposalSet[i] = new SOSet[this.intervalnum];
             for (int j = 0; j < this.intervalnum; j++) {
-                this.ticketProposalSet[i][j] = new SOSet<Integer>(0x3fff); // Less space consumed
+                this.ticketProposalSet[i][j] = new SOSet<Integer>(0x3fff, true); // Less space consumed
                 for (int k = 0; k < this.seatPerTrain; k++) {
                     this.ticketProposalSet[i][j].add(new Integer(k));
                 }
@@ -239,33 +286,39 @@ public class TicketingDS implements TicketingSystem {
         this.threadnum = threadnum;
         this.intervalnum = this.stationnum * (this.stationnum - 1) / 2;
         this.seatPerTrain = this.coachnum * this.seatnum;
-        printParams();
         InitializeSeats();
         SetTicketSet();
         SetRemainingTicketSetIndexMap();
-        initPotentialQueue();
+        // initPotentialQueue();
         initProposalSet();
+        printParams();
         this.ticketRegisteringThread = new RemainingTicketProcessingThread(); 
         this.ticketRegisteringThread.setDaemon(true);
         this.ticketRegisteringThread.start();
         this.proposalDealingThread = new proposalSetProcessingThread();
         this.proposalDealingThread.setDaemon(true);
         this.proposalDealingThread.start();
+        this.proposalingThread = new proposalSettingThread();
+        this.proposalingThread.setDaemon(true);
+        this.proposalingThread.start();
     }
 
     public TicketingDS() {
-        printParams();
         InitializeSeats();
         SetTicketSet();
         SetRemainingTicketSetIndexMap();
-        initPotentialQueue();
+        // initPotentialQueue();
         initProposalSet();
+        printParams();
         this.ticketRegisteringThread = new RemainingTicketProcessingThread(); 
         this.ticketRegisteringThread.setDaemon(true);
         this.ticketRegisteringThread.start();
         this.proposalDealingThread = new proposalSetProcessingThread();
         this.proposalDealingThread.setDaemon(true);
         this.proposalDealingThread.start();
+        this.proposalingThread = new proposalSettingThread();
+        this.proposalingThread.setDaemon(true);
+        this.proposalingThread.start();
     }
 
 
@@ -403,12 +456,13 @@ public class TicketingDS implements TicketingSystem {
         // Integer indFromPotentialQueue = this.potentialQueue[route].dequeue();
         boolean proposalTaken = false;
         Integer indFromProposalSet = 
-            this.ticketProposalSet[route][getRemainingTicketSetIndex(departure, arrival)].randomGet();
+            this.ticketProposalSet[route][getRemainingTicketSetIndex(departure, arrival)].propose();
         boolean proposalValid = false;
         if (indFromProposalSet == null) {
             Random rand = new Random();
             initialSeatIndex = rand.nextInt(this.coachnum * this.seatnum);
             ind = initialSeatIndex;
+            System.out.printf("Proposal null!\n");
         }
         else {
             initialSeatIndex = indFromProposalSet.intValue();
@@ -437,6 +491,7 @@ bretry: while(true)
                 if (proposalValid){
                     proposalValid = false;
                     proposalTaken = false;
+                    System.out.printf("Proposal not taken!\n");
                 }
                 continue bretry;
             }
@@ -481,9 +536,9 @@ bretry: while(true)
         if (!this.soldTicketSet.add(soldTicket)) {
             System.out.println("Error adding sold ticket to hashset");
         }
-        // if (proposalTaken && proposalValid)
-        //     System.out.printf("Proposal of route %d, seat %d, coach %d taken! tid %d from %d to %d\n", 
-        //         ticket.route, ticket.seat, ticket.coach, ticket.tid, ticket.departure, ticket.arrival);
+        if (proposalTaken && proposalValid)
+            System.out.printf("Proposal of route %d, seat %d, coach %d taken! tid %d from %d to %d\n", 
+                ticket.route, ticket.seat, ticket.coach, ticket.tid, ticket.departure, ticket.arrival);
         RegisterRequest request = new RegisterRequest(Operation.BUY, route, departure, arrival, status, ind);
         proposalSetProcessingQueue.enqueue(request);
         remainingTicketProcessingQueue.enqueue(request);
