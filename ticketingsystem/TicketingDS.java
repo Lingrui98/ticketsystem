@@ -23,6 +23,8 @@ public class TicketingDS implements TicketingSystem {
 
     protected AtomicInteger[][] remainingTickets = null;
 
+    protected LockFreeQueue<Integer>[] potentialQueue = null;
+
     Thread ticketRegisteringThread;
 
     enum Operation {
@@ -149,6 +151,16 @@ public class TicketingDS implements TicketingSystem {
                 this.routenum, this.coachnum, this.seatnum, this.stationnum);
     }
 
+    private void initPotentialQueue() {
+        this.potentialQueue = new LockFreeQueue[this.routenum+1];
+        for (int i = 0; i <= this.routenum; i++) {
+            this.potentialQueue[i] = new LockFreeQueue<Integer>();
+            for (int j = 0; j < this.seatPerTrain; j++) {
+                this.potentialQueue[i].enqueue(new Integer(j));
+            }
+        }
+    }
+
     public TicketingDS(int routenum, int coachnum, int seatnum, int stationnum, int threadnum) {
         this.routenum = routenum;
         this.coachnum = coachnum;
@@ -161,6 +173,7 @@ public class TicketingDS implements TicketingSystem {
         InitializeSeats();
         SetTicketSet();
         SetRemainingTicketSetIndexMap();
+        initPotentialQueue();
         this.ticketRegisteringThread = new RemainingTicketProcessingThread(); 
         this.ticketRegisteringThread.setDaemon(true);
         this.ticketRegisteringThread.start();
@@ -171,6 +184,7 @@ public class TicketingDS implements TicketingSystem {
         InitializeSeats();
         SetTicketSet();
         SetRemainingTicketSetIndexMap();
+        initPotentialQueue();
         this.ticketRegisteringThread = new RemainingTicketProcessingThread(); 
         this.ticketRegisteringThread.setDaemon(true);
         this.ticketRegisteringThread.start();
@@ -305,10 +319,21 @@ public class TicketingDS implements TicketingSystem {
         ticket.route = route;
         ticket.departure = departure;
         ticket.arrival = arrival;
+
+        int ind;
+        int initialSeatIndex;
+        Integer indFromPotentialQueue = this.potentialQueue[route].dequeue();
+        if (indFromPotentialQueue == null) {
+            Random rand = new Random();
+            initialSeatIndex = rand.nextInt(this.coachnum * this.seatnum);
+            ind = initialSeatIndex;
+        }
+        else {
+            initialSeatIndex = indFromPotentialQueue.intValue();
+            ind = initialSeatIndex;
+        }
         // Randomly choose a seat to start
-        Random rand = new Random();
-        int initialSeatIndex = rand.nextInt(this.coachnum * this.seatnum);
-        int ind = initialSeatIndex;
+        // int ind = indFromPotentialQueue;
         int status;
 bretry: while(true)
 {
@@ -395,6 +420,7 @@ rretry: while(true)
                     status,ticket.departure,ticket.arrival-1))) {
                 continue rretry;
             }
+            this.potentialQueue[ticket.route].enqueue(new Integer(seatIndex));
             RegisterRequest request = new RegisterRequest(
                 Operation.REFUND, ticket.route, ticket.departure, ticket.arrival, status);
             remainingTicketProcessingQueue.enqueue(request);
