@@ -78,7 +78,7 @@ public class SOSet<T> {
         int bucket = rand.nextInt(tableSize.get());
         LockFreeList<T> l = getLockFreeList(bucket);
         T proposal = l.propose();
-        if (proposal != null) 
+        if (proposal != null)
             return proposal;
         else {
             return table[0].propose();

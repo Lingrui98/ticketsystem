@@ -8,6 +8,8 @@ public class LockFreeList<T> {
     Node head;
     Node tail;
 
+    Node proposal = null;
+
     public String toString() {
         int i = this.head.key;
         int n = 1;
@@ -120,6 +122,7 @@ public class LockFreeList<T> {
                 if (!snip)
                     continue;
                 pred.next.compareAndSet(curr, succ, false, false);
+                // if (curr == proposal) proposal = null; 
                 return true;
             }
         }
@@ -137,8 +140,12 @@ public class LockFreeList<T> {
             else {
                 Node node = new Node(x, key);
                 node.next.set(curr, false);
-                if (pred.next.compareAndSet(curr, node, false, false))
+                if (pred.next.compareAndSet(curr, node, false, false)){
+                    if (proposal == null) {
+                        proposal = node; // propose when add
+                    }
                     return true;
+                }
             }
         }
     }
@@ -149,24 +156,32 @@ public class LockFreeList<T> {
         while (curr.key < key)
             curr = curr.next.getReference();
         Node succ = curr.next.get(marked);
-        return (curr.key == key && !marked[0]);
+        boolean res = curr.key == key && !marked[0];
+        if (res) proposal = curr; // propose if contains
+        return res;
     }
 
     private final boolean isRegular(int key) {
-        return key % 2 == 1;
+        return (key % 2 == 1) && key < Integer.MAX_VALUE;
     }
 
     // Not lock free, propose a valid object from the list
     public T propose() {
-        Node curr = this.head.next.getReference();
-        while (curr.key < Integer.MAX_VALUE) {
-            if (isRegular(curr.key)) {
-                boolean[] marked = {false};
-                Node succ = curr.next.get(marked);
+        if (proposal == null) return null;
+        boolean[] marked = {false};
+        Node curr = this.proposal;
+        proposal = null;
+        Node succ = curr.next.get(marked);
+        if (!marked[0] && isRegular(curr.key)) {
+            return curr.value;
+        }
+        int maxDepth = 4;
+        int d = 0;
+        while (d++ < maxDepth && isRegular(succ.key)) {
+                curr = succ;
+                succ = curr.next.get(marked);
                 if (!marked[0])
                     return curr.value;
-            }
-            curr = curr.next.getReference();
         }
         return null;
 

@@ -223,7 +223,7 @@ public class TicketingDS implements TicketingSystem {
         for (int i = 0; i <= this.routenum; i++) {
             this.ticketProposalSet[i] = new SOSet[this.intervalnum];
             for (int j = 0; j < this.intervalnum; j++) {
-                this.ticketProposalSet[i][j] = new SOSet<Integer>(0xfffff);
+                this.ticketProposalSet[i][j] = new SOSet<Integer>(0x3fff); // Less space consumed
                 for (int k = 0; k < this.seatPerTrain; k++) {
                     this.ticketProposalSet[i][j].add(new Integer(k));
                 }
