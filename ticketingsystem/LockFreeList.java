@@ -152,4 +152,24 @@ public class LockFreeList<T> {
         return (curr.key == key && !marked[0]);
     }
 
+    private final boolean isRegular(int key) {
+        return key % 2 == 1;
+    }
+
+    // Not lock free, propose a valid object from the list
+    public T propose() {
+        Node curr = this.head.next.getReference();
+        while (curr.key < Integer.MAX_VALUE) {
+            if (isRegular(curr.key)) {
+                boolean[] marked = {false};
+                Node succ = curr.next.get(marked);
+                if (!marked[0])
+                    return curr.value;
+            }
+            curr = curr.next.getReference();
+        }
+        return null;
+
+    }
+
 }

@@ -9,6 +9,7 @@ public class SOSet<T> {
     protected AtomicInteger tableSize;
     protected AtomicInteger setSize;
     protected AtomicInteger size;
+    protected Random rand = new Random();
     private static final double THRESHOLD = 4.0;
 	static final int WORD_SIZE = 32;
 
@@ -69,6 +70,19 @@ public class SOSet<T> {
 
     public boolean isEmpty() {
         return size.get() == 0;
+    }
+
+    public T randomGet() {
+        if (isEmpty()) return null;
+        // Random start(maybe not a good idea)
+        int bucket = rand.nextInt(tableSize.get());
+        LockFreeList<T> l = getLockFreeList(bucket);
+        T proposal = l.propose();
+        if (proposal != null) 
+            return proposal;
+        else {
+            return table[0].propose();
+        }
     }
     
     private LockFreeList<T> getLockFreeList(int bucket) {
