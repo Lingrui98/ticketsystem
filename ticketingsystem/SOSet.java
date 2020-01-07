@@ -8,6 +8,7 @@ public class SOSet<T> {
     protected LockFreeList<T>[] table;
     protected AtomicInteger tableSize;
     protected AtomicInteger setSize;
+    protected AtomicInteger size;
     private static final double THRESHOLD = 4.0;
 	static final int WORD_SIZE = 32;
 
@@ -16,6 +17,7 @@ public class SOSet<T> {
         table[0] = new LockFreeList<T>();
         tableSize = new AtomicInteger(2);
         setSize = new AtomicInteger(0);
+        size = new AtomicInteger(0);
     }
 
     public String toString() {
@@ -30,6 +32,7 @@ public class SOSet<T> {
         LockFreeList<T> list = getLockFreeList(bucket);
         if (!list.add(x, key))
             return false;
+        size.getAndIncrement();
         resizeCheck();
         return true;
     }
@@ -52,7 +55,7 @@ public class SOSet<T> {
             //System.out.println("Failed to remove");
             return false;
         }
-        setSize.getAndDecrement();
+        size.getAndDecrement();
         return true;
     }
 
@@ -65,7 +68,7 @@ public class SOSet<T> {
     }
 
     public boolean isEmpty() {
-        return setSize.get() == 0;
+        return size.get() == 0;
     }
     
     private LockFreeList<T> getLockFreeList(int bucket) {
