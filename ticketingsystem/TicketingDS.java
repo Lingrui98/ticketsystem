@@ -31,6 +31,8 @@ public class TicketingDS implements TicketingSystem {
 
     protected LockFreeQueue<RegisterRequest> proposalSetProcessingQueue = new LockFreeQueue<RegisterRequest>();
 
+    protected AtomicInteger[][] proposal;
+
     Thread ticketRegisteringThread;
 
     Thread proposalDealingThread;
@@ -189,7 +191,18 @@ public class TicketingDS implements TicketingSystem {
             while (true) {
                 for (int r = 1; r <= routenum; r++) {
                     for (int interval = 0; interval < intervalnum; interval++) {
-                        ticketProposalSet[r][interval].setProposal();
+                        Integer prop = ticketProposalSet[r][interval].propose();
+                        if (prop == null)
+                            ticketProposalSet[r][interval].setProposal();
+                        else {
+                            proposal[r][interval].set(prop.intValue());
+                            continue;
+                        }
+                        prop = ticketProposalSet[r][interval].propose();
+                        if (prop == null)
+                            continue;
+                        else
+                            proposal[r][interval].set(prop.intValue());
                     }
                 }                
             }
@@ -267,13 +280,16 @@ public class TicketingDS implements TicketingSystem {
 
     private void initProposalSet() {
         this.ticketProposalSet = new SOSet[this.routenum+1][];
+        this.proposal = new AtomicInteger[this.routenum+1][];
         for (int i = 0; i <= this.routenum; i++) {
             this.ticketProposalSet[i] = new SOSet[this.intervalnum];
+            this.proposal[i] = new AtomicInteger[this.intervalnum];
             for (int j = 0; j < this.intervalnum; j++) {
                 this.ticketProposalSet[i][j] = new SOSet<Integer>(0x3fff, true); // Less space consumed
                 for (int k = 0; k < this.seatPerTrain; k++) {
                     this.ticketProposalSet[i][j].add(new Integer(k));
                 }
+                this.proposal[i][j] = new AtomicInteger();
             }
         }
     }
@@ -289,18 +305,18 @@ public class TicketingDS implements TicketingSystem {
         InitializeSeats();
         SetTicketSet();
         SetRemainingTicketSetIndexMap();
-        initPotentialQueue();
-        // initProposalSet();
+        // initPotentialQueue();
+        initProposalSet();
         printParams();
         this.ticketRegisteringThread = new RemainingTicketProcessingThread(); 
         this.ticketRegisteringThread.setDaemon(true);
         this.ticketRegisteringThread.start();
-    //     this.proposalDealingThread = new proposalSetProcessingThread();
-    //     this.proposalDealingThread.setDaemon(true);
-    //     this.proposalDealingThread.start();
-    //     this.proposalingThread = new proposalSettingThread();
-    //     this.proposalingThread.setDaemon(true);
-    //     this.proposalingThread.start();
+        this.proposalDealingThread = new proposalSetProcessingThread();
+        this.proposalDealingThread.setDaemon(true);
+        this.proposalDealingThread.start();
+        this.proposalingThread = new proposalSettingThread();
+        this.proposalingThread.setDaemon(true);
+        this.proposalingThread.start();
     }
 
     public TicketingDS() {
@@ -453,10 +469,9 @@ public class TicketingDS implements TicketingSystem {
 
         int ind;
         int initialSeatIndex;
-        Integer indFromPotentialQueue = this.potentialQueue[route].dequeue();
+        // Integer indFromPotentialQueue = this.potentialQueue[route].dequeue();
         // boolean proposalTaken = false;
-        // Integer indFromProposalSet = 
-        //     this.ticketProposalSet[route][getRemainingTicketSetIndex(departure, arrival)].propose();
+        int indFromProposalSet = this.proposal[route][getRemainingTicketSetIndex(departure,arrival)].get();
         // boolean proposalValid = false;
         // if (indFromProposalSet == null) {
         //     Random rand = new Random();
@@ -465,19 +480,20 @@ public class TicketingDS implements TicketingSystem {
         //     // System.out.printf("Proposal null!\n");
         // }
         // else {
-        //     initialSeatIndex = indFromProposalSet.intValue();
-        //     ind = initialSeatIndex;
-        //     // proposalValid = true;
+            // initialSeatIndex = indFromProposalSet.intValue();
+            initialSeatIndex = indFromProposalSet;
+            ind = initialSeatIndex;
+            // proposalValid = true;
         // }
-        if (indFromPotentialQueue == null) {
-            Random rand = new Random();
-            initialSeatIndex = rand.nextInt(this.coachnum * this.seatnum);
-            ind = initialSeatIndex;
-        }
-        else {
-            initialSeatIndex = indFromPotentialQueue.intValue();
-            ind = initialSeatIndex;
-        }
+        // if (indFromPotentialQueue == null) {
+        //     Random rand = new Random();
+        //     initialSeatIndex = rand.nextInt(this.coachnum * this.seatnum);
+        //     ind = initialSeatIndex;
+        // }
+        // else {
+        //     initialSeatIndex = indFromPotentialQueue.intValue();
+        //     ind = initialSeatIndex;
+        // }
         // Randomly choose a seat to start
         // ind = indFromPotentialQueue;
         int status;
@@ -540,7 +556,7 @@ bretry: while(true)
         //     System.out.printf("Proposal of route %d, seat %d, coach %d taken! tid %d from %d to %d\n", 
         //         ticket.route, ticket.seat, ticket.coach, ticket.tid, ticket.departure, ticket.arrival);
         RegisterRequest request = new RegisterRequest(Operation.BUY, route, departure, arrival, status, ind);
-        // proposalSetProcessingQueue.enqueue(request);
+        proposalSetProcessingQueue.enqueue(request);
         remainingTicketProcessingQueue.enqueue(request);
         //System.out.println("Buying ticket of " + ticket);
         //System.out.flush();
@@ -577,10 +593,10 @@ rretry: while(true)
                     status,ticket.departure,ticket.arrival-1))) {
                 continue rretry;
             }
-            this.potentialQueue[ticket.route].enqueue(new Integer(seatIndex));
+            // this.potentialQueue[ticket.route].enqueue(new Integer(seatIndex));
             RegisterRequest request = new RegisterRequest(
                 Operation.REFUND, ticket.route, ticket.departure, ticket.arrival, status, seatIndex);
-            // proposalSetProcessingQueue.enqueue(request);
+            proposalSetProcessingQueue.enqueue(request);
             remainingTicketProcessingQueue.enqueue(request);
             return true;
 }

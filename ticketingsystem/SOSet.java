@@ -11,7 +11,7 @@ public class SOSet<T> {
     protected AtomicInteger size;
     protected Random rand = new Random();
     protected boolean isPropose = false;
-    protected AtomicReference<T> proposal = new AtomicReference<T>(null);
+    public AtomicReference<T> proposal = new AtomicReference<T>(null);
     private static final double THRESHOLD = 4.0;
 	static final int WORD_SIZE = 32;
 

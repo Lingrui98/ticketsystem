@@ -183,10 +183,14 @@ public class LockFreeList<T> {
             return curr.value;
 
         Node succ;
+        int maxDepth = 4;
+        int d = 0;
+b1:
         do {
             while (!isRegular(curr.key)) {
                 curr = curr.next.getReference();
                 if (curr == null) return null;
+                if (d++ >= maxDepth) break b1;
             }
             succ = curr.next.get(marked);
         } while (marked[0]);
