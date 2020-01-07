@@ -145,6 +145,8 @@ public class TicketingDS implements TicketingSystem {
                     int to = request.arrival;
                     int status = request.status;
                     int ind = request.seatIndex;
+                    // Mem usage should be lowered
+                    Integer elem = new Integer(ind);
                     if (request.type == Operation.BUY) {
                         int lower = getLowerBoundOfMaximumEmptyInterval(status, from);
                         int upper = getUpperBoundOfMaximumEmptyInterval(status, to);
@@ -154,7 +156,7 @@ public class TicketingDS implements TicketingSystem {
                         for (x = lower; x < to; x++) {
                             for (y = from+1; y <= upper+1; y++) {
                                 if (x < y) {
-                                    ticketProposalSet[route][getRemainingTicketSetIndex(x,y)].remove(new Integer(ind));
+                                    ticketProposalSet[route][getRemainingTicketSetIndex(x,y)].remove(elem);
                                     //System.out.printf("Decrease of (%d,%d), status 0x%x, from %d, to %d\n", x, y, status, from, to);
                                     //System.out.flush();
                                 }
@@ -170,7 +172,7 @@ public class TicketingDS implements TicketingSystem {
                         for (x = lower; x < to; x++) {
                             for (y = from+1; y <= upper+1; y++) {
                                 if (x < y) {
-                                    ticketProposalSet[route][getRemainingTicketSetIndex(x,y)].add(new Integer(ind));
+                                    ticketProposalSet[route][getRemainingTicketSetIndex(x,y)].add(elem);
                                     //System.out.printf("Increase of (%d,%d), status 0x%x, from %d, to %d\n", x, y, status, from, to);
                                     //System.out.flush();
                                 }
