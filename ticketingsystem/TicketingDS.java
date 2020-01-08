@@ -40,9 +40,9 @@ public class TicketingDS implements TicketingSystem {
 
     // protected LockFreeQueue<TicketWithHash> dummyHashTickets = new LockFreeQueue<TicketWithHash>();
 
-    public Ticket dummyTicket = null;
-    public TicketWithHash dummyHashTicket = null;
-    public RegisterRequest dummyRequest = null;
+    public AtomicReference<Ticket> dummyTicket = new AtomicReference<Ticket>(null);
+    public AtomicReference<TicketWithHash> dummyHashTicket = new AtomicReference<TicketWithHash>(null);
+    public AtomicReference<RegisterRequest> dummyRequest = new AtomicReference<RegisterRequest>(null);
 
     Thread ticketRegisteringThread;
 
@@ -504,11 +504,9 @@ public class TicketingDS implements TicketingSystem {
 
     public Ticket buyTicket(String passenger, int route, int departure, int arrival) {
         Ticket ticket = null;
-        if ((ticket = dummyTicket) == null) {
+        if ((ticket = dummyTicket.getAndSet(null)) == null) {
             ticket = new Ticket();
         }
-        else 
-            dummyTicket = null;
         // Ticket ticket = new Ticket();
         long tid = this.systemtid.getAndIncrement();
 
@@ -589,11 +587,9 @@ bretry: while(true)
         }
 }
         TicketWithHash soldTicket = null;
-        if ((soldTicket = dummyHashTicket) == null){
+        if ((soldTicket = dummyHashTicket.getAndSet(null)) == null){
             soldTicket = new TicketWithHash();
         }
-        else
-            dummyHashTicket = null;
 
         soldTicket.ticket = ticket;
 
@@ -604,12 +600,11 @@ bretry: while(true)
         //     System.out.printf("Proposal of route %d, seat %d, coach %d taken! tid %d from %d to %d\n", 
         //         ticket.route, ticket.seat, ticket.coach, ticket.tid, ticket.departure, ticket.arrival);
         RegisterRequest request;
-        if ((request = dummyRequest) == null)
+        if ((request = dummyRequest.getAndSet(null)) == null)
             request = new RegisterRequest(
                 Operation.REFUND, ticket.route, ticket.departure, ticket.arrival, status, ind);
         else {
             request.set(Operation.REFUND, ticket.route, ticket.departure, ticket.arrival, status, ind);
-            dummyRequest = null;
         }
 
         if (this.USE_PROPOSAL)
@@ -628,15 +623,14 @@ bretry: while(true)
     public boolean refundTicket(Ticket ticket) {
 
         TicketWithHash soldTicket = null;
-        if ((soldTicket = dummyHashTicket) == null) {
+        if ((soldTicket = dummyHashTicket.getAndSet(null)) == null) {
             soldTicket = new TicketWithHash();
         }
-        else 
-            dummyHashTicket = null;
+
         soldTicket.ticket = ticket;
 
         if (!soldTicketSet.remove(soldTicket)) {
-            dummyHashTicket = soldTicket;
+            dummyHashTicket.set(soldTicket);
             return false;
         }
         else {
@@ -654,18 +648,17 @@ rretry: while(true)
                 this.potentialQueue[ticket.route].enqueue(new Integer(seatIndex));
             
             RegisterRequest request = null;
-            if ((request = this.dummyRequest) == null)
+            if ((request = dummyRequest.getAndSet(null)) == null)
                 request = new RegisterRequest(
                     Operation.REFUND, ticket.route, ticket.departure, ticket.arrival, status, seatIndex);
             else {
                 request.set(Operation.REFUND, ticket.route, ticket.departure, ticket.arrival, status, seatIndex);
-                this.dummyRequest = null;
             }
 
             if (this.USE_PROPOSAL)
                 proposalSetProcessingQueue.enqueue(request);
             remainingTicketProcessingQueue.enqueue(request);
-            this.dummyTicket = ticket;
+            dummyTicket.set(ticket);
             return true;
 }
 
