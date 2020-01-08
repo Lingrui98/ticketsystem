@@ -11,7 +11,7 @@ public class LockFreeList<T> {
     AtomicReference<T> proposal = new AtomicReference(null);
     boolean isPropose = false;
 
-    Node dummyNode = null;
+    // Node dummyNode = null;
 
     public String toString() {
         int i = this.head.key;
@@ -116,7 +116,7 @@ public class LockFreeList<T> {
                     if (!snip)
                         continue retry;
                     // recycle when physically remove
-                    recycle(curr);
+                    // recycle(curr);
                     curr = succ;
                     succ = curr.next.get(marked);
                 }
@@ -128,11 +128,11 @@ public class LockFreeList<T> {
         }
     }
 
-    private void recycle(Node node) {
-        node.value = null;
-        node.key = Integer.MAX_VALUE;
-        this.dummyNode = node;
-    }
+    // private void recycle(Node node) {
+    //     node.value = null;
+    //     node.key = Integer.MAX_VALUE;
+    //     this.dummyNode = node;
+    // }
 
     public boolean remove(int key) {
         boolean snip;
@@ -167,11 +167,11 @@ public class LockFreeList<T> {
             }
             else {
                 Node node;
-                if ((node = dummyNode) != null) {
-                    node.set(x, key);
-                    dummyNode = null;
-                }
-                else
+                // if ((node = dummyNode) != null) {
+                //     node.set(x, key);
+                //     dummyNode = null;
+                // }
+                // else
                     node = new Node(x, key);
                 node.next.set(curr, false);
                 if (pred.next.compareAndSet(curr, node, false, false)){
