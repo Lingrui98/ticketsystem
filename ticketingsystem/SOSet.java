@@ -10,10 +10,12 @@ public class SOSet<T> {
     protected AtomicInteger setSize;
     protected AtomicInteger size;
     protected Random rand = new Random();
-    protected boolean isPropose = false;
-    public AtomicReference<T> proposal = new AtomicReference<T>(null);
     private static final double THRESHOLD = 4.0;
 	static final int WORD_SIZE = 32;
+
+    protected boolean isPropose = false;
+    public AtomicReference<T> proposal = new AtomicReference<T>(null);
+    protected AtomicInteger maxElemNum = new AtomicInteger(0);
 
     public SOSet(int capacity) {
         table = (LockFreeList<T>[]) new LockFreeList[capacity];
@@ -33,6 +35,10 @@ public class SOSet<T> {
         size = new AtomicInteger(0);
     }
 
+    public int getMax() {
+        return maxElemNum.get();
+    }
+
     public String toString() {
         return this.table[0].toString();
     }
@@ -45,7 +51,9 @@ public class SOSet<T> {
         LockFreeList<T> list = getLockFreeList(bucket);
         if (!list.add(x, key))
             return false;
-        size.getAndIncrement();
+        int now = size.getAndIncrement();
+        if (now > maxElemNum.get())
+            maxElemNum.set(now);
         resizeCheck();
         return true;
     }

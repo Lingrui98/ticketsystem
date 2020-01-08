@@ -459,10 +459,6 @@ public class TicketingDS implements TicketingSystem {
         }
     }
 
-    private void printSoldTicketSetMaxElem() {
-        int max = soldTicketSet.getMax();
-        System.out.println("Maximum set num is " + max);
-    }
     
 
     public Ticket buyTicket(String passenger, int route, int departure, int arrival) {
@@ -472,9 +468,6 @@ public class TicketingDS implements TicketingSystem {
         ticket.route = route;
         ticket.departure = departure;
         ticket.arrival = arrival;
-
-        if (ticket.tid % 1000000 == 0)
-            printSoldTicketSetMaxElem();
 
         int ind;
         int initialSeatIndex;
