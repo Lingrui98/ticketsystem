@@ -36,6 +36,10 @@ public class TicketingDS implements TicketingSystem {
 
     protected AtomicInteger[][] proposal;
 
+    protected LockFreeQueue<Ticket> dummyTickets = new LockFreeQueue<Ticket>();
+
+    protected LockFreeQueue<TicketWithHash> dummyHashTickets = new LockFreeQueue<TicketWithHash>();
+
     Thread ticketRegisteringThread;
 
     Thread proposalDealingThread;
@@ -475,14 +479,23 @@ public class TicketingDS implements TicketingSystem {
         System.out.println("Maximum set num is " + max);
     }
     
+    // private void setTicket(Ticket ticket, long tid, String passenger, int route, int coach, int seat, int departure, int arrival) {
+    //     ticket.tid = tid;
+    //     ticket.passenger = passenger;
+    //     ticket.route = route;
+    //     ticket.coach = coach;
+    //     ticket.seat = seat;
+    //     ticket.departure = departure;
+    //     ticket.arrival = arrival;
+    // }
 
     public Ticket buyTicket(String passenger, int route, int departure, int arrival) {
-        Ticket ticket = new Ticket();
-        ticket.tid = this.systemtid.getAndIncrement();
-        ticket.passenger = passenger;
-        ticket.route = route;
-        ticket.departure = departure;
-        ticket.arrival = arrival;
+        Ticket ticket = null;
+        if ((ticket = dummyTickets.dequeue()) == null) {
+            ticket = new Ticket();
+        }
+        // Ticket ticket = new Ticket();
+        long tid = this.systemtid.getAndIncrement();
 
         // if (ticket.tid % 1000000 == 0)
         //     printSoldTicketSetMaxElem();
@@ -533,14 +546,15 @@ bretry: while(true)
             }
             // If succeeds, wrap the ticket with coach and seat
             else {
-                ticket.coach = seatIndexToCoach(ind);
-                ticket.seat = seatIndexToSeat(ind);
+                int coach = seatIndexToCoach(ind);
+                int seat = seatIndexToSeat(ind);
                 //System.out.println("ind"+ind);
                 //System.out.println("Success, buying ticket of " + ticket);
                 //System.out.flush();
                 // if (proposalValid) {
                 //     proposalTaken = true;
                 // }
+                ticket.set(tid, passenger, route, coach, seat, departure, arrival);
                 break bretry;
             }
         }
@@ -559,15 +573,12 @@ bretry: while(true)
             }
         }
 }
-        TicketWithHash soldTicket = new TicketWithHash();
+        TicketWithHash soldTicket = null;
+        if ((soldTicket = dummyHashTickets.dequeue()) == null){
+            soldTicket = new TicketWithHash();
+        }
 
-        soldTicket.ticket.tid = ticket.tid;
-        soldTicket.ticket.passenger = ticket.passenger;
-        soldTicket.ticket.route = ticket.route;
-        soldTicket.ticket.departure = ticket.departure;
-        soldTicket.ticket.arrival = ticket.arrival;
-        soldTicket.ticket.coach = ticket.coach;
-        soldTicket.ticket.seat = ticket.seat;
+        soldTicket.ticket = ticket;
 
         if (!this.soldTicketSet.add(soldTicket)) {
             System.out.println("Error adding sold ticket to hashset");
@@ -590,17 +601,15 @@ bretry: while(true)
     }
 
     public boolean refundTicket(Ticket ticket) {
-        TicketWithHash soldTicket = new TicketWithHash();
 
-        soldTicket.ticket.tid = ticket.tid;
-        soldTicket.ticket.passenger = ticket.passenger;
-        soldTicket.ticket.route = ticket.route;
-        soldTicket.ticket.departure = ticket.departure;
-        soldTicket.ticket.arrival = ticket.arrival;
-        soldTicket.ticket.coach = ticket.coach;
-        soldTicket.ticket.seat = ticket.seat;
+        TicketWithHash soldTicket = null;
+        if ((soldTicket = dummyHashTickets.dequeue()) == null) {
+            soldTicket = new TicketWithHash();
+        }
+        soldTicket.ticket = ticket;
 
         if (!soldTicketSet.remove(soldTicket)) {
+            dummyHashTickets.enqueue(soldTicket);
             return false;
         }
         else {
@@ -620,6 +629,7 @@ rretry: while(true)
             if (this.USE_PROPOSAL)
                 proposalSetProcessingQueue.enqueue(request);
             remainingTicketProcessingQueue.enqueue(request);
+            dummyTickets.enqueue(ticket);
             return true;
 }
 

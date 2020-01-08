@@ -6,7 +6,6 @@ public class TicketWithHash {
     public Ticket ticket;
 
     public TicketWithHash() {
-        this.ticket = new Ticket();
     }
 
     public int hashCode() {
