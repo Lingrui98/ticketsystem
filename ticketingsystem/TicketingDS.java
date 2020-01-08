@@ -15,7 +15,7 @@ public class TicketingDS implements TicketingSystem {
     private int seatPerTrain = 800;
 
     private boolean USE_PROPOSAL = false;
-    private boolean USE_POTENTIAL_QUEUE = true;
+    private boolean USE_POTENTIAL_QUEUE = false;
 
     // ind ---> y
     protected int[] remainingTicketSetIndexMap = null;
@@ -502,7 +502,7 @@ public class TicketingDS implements TicketingSystem {
 
         int ind;
         int initialSeatIndex;
-        Integer indFromPotentialQueue = this.potentialQueue[route].dequeue();
+        // Integer indFromPotentialQueue = this.potentialQueue[route].dequeue();
         // boolean proposalTaken = false;
         // int indFromProposalSet = this.proposal[route][getRemainingTicketSetIndex(departure,arrival)].get();
         // boolean proposalValid = false;
@@ -518,15 +518,15 @@ public class TicketingDS implements TicketingSystem {
             // ind = initialSeatIndex;
             // proposalValid = true;
         // }
-        if (indFromPotentialQueue == null) {
+        // if (indFromPotentialQueue == null) {
             Random rand = new Random();
             initialSeatIndex = rand.nextInt(this.coachnum * this.seatnum);
             ind = initialSeatIndex;
-        }
-        else {
-            initialSeatIndex = indFromPotentialQueue.intValue();
-            ind = initialSeatIndex;
-        }
+        // }
+        // else {
+        //     initialSeatIndex = indFromPotentialQueue.intValue();
+        //     ind = initialSeatIndex;
+        // }
         // Randomly choose a seat to start
         // ind = indFromPotentialQueue;
         int status;
@@ -623,7 +623,8 @@ rretry: while(true)
                     status,ticket.departure,ticket.arrival-1))) {
                 continue rretry;
             }
-            // this.potentialQueue[ticket.route].enqueue(new Integer(seatIndex));
+            if (this.USE_POTENTIAL_QUEUE)
+                this.potentialQueue[ticket.route].enqueue(new Integer(seatIndex));
             RegisterRequest request = new RegisterRequest(
                 Operation.REFUND, ticket.route, ticket.departure, ticket.arrival, status, seatIndex);
             if (this.USE_PROPOSAL)
