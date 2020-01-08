@@ -15,7 +15,7 @@ public class TicketingDS implements TicketingSystem {
     private int seatPerTrain = 800;
 
     private boolean USE_PROPOSAL = false;
-    private boolean USE_POTENTIAL_QUEUE = false;
+    private boolean USE_POTENTIAL_QUEUE = true;
 
     // ind ---> y
     protected int[] remainingTicketSetIndexMap = null;
@@ -515,7 +515,7 @@ public class TicketingDS implements TicketingSystem {
 
         int ind;
         int initialSeatIndex;
-        // Integer indFromPotentialQueue = this.potentialQueue[route].dequeue();
+        Integer indFromPotentialQueue = this.potentialQueue[route].dequeue();
         // boolean proposalTaken = false;
         // int indFromProposalSet = this.proposal[route][getRemainingTicketSetIndex(departure,arrival)].get();
         // boolean proposalValid = false;
@@ -531,15 +531,15 @@ public class TicketingDS implements TicketingSystem {
             // ind = initialSeatIndex;
             // proposalValid = true;
         // }
-        // if (indFromPotentialQueue == null) {
+        if (indFromPotentialQueue == null) {
             Random rand = new Random();
             initialSeatIndex = rand.nextInt(this.coachnum * this.seatnum);
             ind = initialSeatIndex;
-        // }
-        // else {
-        //     initialSeatIndex = indFromPotentialQueue.intValue();
-        //     ind = initialSeatIndex;
-        // }
+        }
+        else {
+            initialSeatIndex = indFromPotentialQueue.intValue();
+            ind = initialSeatIndex;
+        }
         // Randomly choose a seat to start
         // ind = indFromPotentialQueue;
         int status;

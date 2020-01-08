@@ -51,9 +51,9 @@ public class SOSet<T> {
         LockFreeList<T> list = getLockFreeList(bucket);
         if (!list.add(x, key))
             return false;
-        int now = size.getAndIncrement();
-        if (now > maxElemNum.get())
-            maxElemNum.set(now);
+        // int now = size.getAndIncrement();
+        // if (now > maxElemNum.get())
+        //     maxElemNum.set(now);
         resizeCheck();
         return true;
     }
@@ -76,7 +76,8 @@ public class SOSet<T> {
             //System.out.println("Failed to remove");
             return false;
         }
-        size.getAndDecrement();
+        setSize.decrementAndGet();
+        // size.getAndDecrement();
         return true;
     }
 
