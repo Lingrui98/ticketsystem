@@ -11,7 +11,7 @@ public class LockFreeList<T> {
     AtomicReference<T> proposal = new AtomicReference(null);
     boolean isPropose = false;
 
-    LockFreeQueue<Node> dummyNodes = new LockFreeQueue<Node>();
+    Node dummyNode = null;
 
     public String toString() {
         int i = this.head.key;
@@ -131,7 +131,7 @@ public class LockFreeList<T> {
     private void recycle(Node node) {
         node.value = null;
         node.key = Integer.MAX_VALUE;
-        dummyNodes.enqueue(node);
+        this.dummyNode = node;
     }
 
     public boolean remove(int key) {
@@ -167,8 +167,10 @@ public class LockFreeList<T> {
             }
             else {
                 Node node;
-                if ((node = dummyNodes.dequeue()) != null)
+                if ((node = dummyNode) != null) {
                     node.set(x, key);
+                    dummyNode = null;
+                }
                 else
                     node = new Node(x, key);
                 node.next.set(curr, false);
