@@ -11,6 +11,8 @@ public class LockFreeList<T> {
     AtomicReference<T> proposal = new AtomicReference(null);
     boolean isPropose = false;
 
+    LockFreeQueue<Node> dummyNodes = new LockFreeQueue<Node>();
+
     public String toString() {
         int i = this.head.key;
         int n = 1;
@@ -26,6 +28,10 @@ public class LockFreeList<T> {
         }
         return res;
     }
+
+    // public int getMaxSize() {
+    //     return maxSize;
+    // }
 
     public LockFreeList() {
         this.head = new Node(0);
@@ -80,6 +86,11 @@ public class LockFreeList<T> {
             this.key = key;
             this.next = new AtomicMarkableReference<LockFreeList<T>.Node>(null, false);
         }
+
+        public void set(T val,int key) {
+            this.value = val;
+            this.key = key;
+        }
     }
 
     class Window {
@@ -104,6 +115,8 @@ public class LockFreeList<T> {
                     snip = pred.next.compareAndSet(curr, succ, false, false);
                     if (!snip)
                         continue retry;
+                    // recycle when physically remove
+                    recycle(curr);
                     curr = succ;
                     succ = curr.next.get(marked);
                 }
@@ -113,6 +126,12 @@ public class LockFreeList<T> {
                 curr = succ;
             }
         }
+    }
+
+    private void recycle(Node node) {
+        node.value = null;
+        node.key = Integer.MAX_VALUE;
+        dummyNodes.enqueue(node);
     }
 
     public boolean remove(int key) {
@@ -130,6 +149,7 @@ public class LockFreeList<T> {
                 if (!snip)
                     continue;
                 pred.next.compareAndSet(curr, succ, false, false);
+
                 // if (curr == proposal) proposal = null; 
                 return true;
             }
@@ -146,7 +166,11 @@ public class LockFreeList<T> {
                 return false;
             }
             else {
-                Node node = new Node(x, key);
+                Node node;
+                if ((node = dummyNodes.dequeue()) != null)
+                    node.set(x, key);
+                else
+                    node = new Node(x, key);
                 node.next.set(curr, false);
                 if (pred.next.compareAndSet(curr, node, false, false)){
                     // if (isPropose && proposal == null) {
