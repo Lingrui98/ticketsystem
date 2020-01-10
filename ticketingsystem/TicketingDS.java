@@ -16,6 +16,7 @@ public class TicketingDS implements TicketingSystem {
 
     private boolean USE_PROPOSAL = false;
     private boolean USE_POTENTIAL_QUEUE = true;
+    private boolean USE_SOLDOUT_INDICATOR = true;
 
     // ind ---> y
     protected int[] remainingTicketSetIndexMap = null;
@@ -35,6 +36,8 @@ public class TicketingDS implements TicketingSystem {
     protected LockFreeQueue<RegisterRequest> proposalSetProcessingQueue = new LockFreeQueue<RegisterRequest>();
 
     protected AtomicInteger[][] proposal;
+
+    protected AtomicInteger[][] routeIntervalCounter;
 
     // protected LockFreeQueue<Ticket> dummyTickets = new LockFreeQueue<Ticket>();
 
@@ -318,6 +321,23 @@ public class TicketingDS implements TicketingSystem {
         }
     }
 
+    // private void initSoldOutIndicator() {
+    //     this.initSoldOutIndicator = new AtomicInteger[this.routenum+1];
+    //     for (int i = 0; i <= this.routenum; i++) {
+    //         thins.initSoldOutIndicator[i] = new AtomicInteger(0);
+    //     }
+    // }
+
+    private void initRouteIntervalCounter() {
+        this.routeIntervalCounter = new AtomicInteger[this.routenum+1][];
+        for (int i = 0; i <= this.routenum; i++) {
+            this.routeIntervalCounter[i] = new AtomicInteger[this.stationnum];
+            for (int j = 0; j < this.stationnum; j++) {
+                this.routeIntervalCounter[i][j] = new AtomicInteger(0);
+            }
+        }
+    }
+
     public TicketingDS(int routenum, int coachnum, int seatnum, int stationnum, int threadnum) {
         this.routenum = routenum;
         this.coachnum = coachnum;
@@ -344,6 +364,9 @@ public class TicketingDS implements TicketingSystem {
             this.proposalingThread.setDaemon(true);
             this.proposalingThread.start();
         }
+        if (this.USE_SOLDOUT_INDICATOR) {
+            initRouteIntervalCounter();
+        }
     }
 
     public TicketingDS() {
@@ -364,6 +387,9 @@ public class TicketingDS implements TicketingSystem {
             this.proposalingThread = new proposalSettingThread();
             this.proposalingThread.setDaemon(true);
             this.proposalingThread.start();
+        }
+        if (this.USE_SOLDOUT_INDICATOR) {
+            initRouteIntervalCounter();
         }
     }
 
@@ -447,6 +473,53 @@ public class TicketingDS implements TicketingSystem {
         return !intervalIsAvailable(status,pos,pos+1);
     }
 
+    private final int mask(int num, int x, int y) {
+        return setBitsToOne(0xffffffff, x, y) & num;
+    }
+
+    public boolean isSoldOut(int route, int departure, int arrival) {
+        for (int i = departure; i < arrival; i++) {
+            if (routeIntervalCounter[route][i].get() >= this.seatPerTrain)
+                return true;
+        }
+        return false;
+    }
+
+    private boolean updateRouteIntervalCounter(int route, int departure, int arrival, Operation type) {
+        int inter;
+        // boolean[] flag = new boolean[arrival-departure+1];
+        if (type == Operation.BUY) {
+            for (inter = departure; inter < arrival; inter++) {
+                int count;
+                do {
+                    count = routeIntervalCounter[route][inter].get();
+
+                    if (count >= this.seatPerTrain) {
+                        // Roll back
+                        for (int i = 0; i < inter - departure; i++) {
+                            routeIntervalCounter[route][i].getAndDecrement();
+                        }
+                        return false;
+                    }
+
+                }
+                while (!routeIntervalCounter[route][inter].compareAndSet(count, count+1));
+            }
+            return true;
+        }
+        else if (type == Operation.REFUND) {
+            for (inter = departure; inter < arrival; inter++) {
+                // This do not need checking
+                int count = routeIntervalCounter[route][inter].decrementAndGet();
+                if (count < 0 || count >= this.seatPerTrain) {
+                    assert(false);
+                }
+            }
+            return true;
+        }
+        return true;
+    }
+
     // Returning minimum bit in status of the whole empty interval
     public final int getLowerBoundOfMaximumEmptyInterval(int status, int from) {
         if (from == 1) {
@@ -503,116 +576,136 @@ public class TicketingDS implements TicketingSystem {
     // }
 
     public Ticket buyTicket(String passenger, int route, int departure, int arrival) {
-        Ticket ticket = null;
-        // if ((ticket = dummyTicket.getAndSet(null)) == null) {
-            ticket = new Ticket();
-        // }
-        // Ticket ticket = new Ticket();
-        long tid = this.systemtid.getAndIncrement();
+        if (isSoldOut(route, departure, arrival))
+            return null;
 
-        // if (ticket.tid % 1000000 == 0)
-        //     printSoldTicketSetMaxElem();
-
-        int ind;
-        int initialSeatIndex;
-        Integer indFromPotentialQueue = this.potentialQueue[route].dequeue();
-        // boolean proposalTaken = false;
-        // int indFromProposalSet = this.proposal[route][getRemainingTicketSetIndex(departure,arrival)].get();
-        // boolean proposalValid = false;
-        // if (indFromProposalSet == null) {
-        //     Random rand = new Random();
-        //     initialSeatIndex = rand.nextInt(this.coachnum * this.seatnum);
-        //     ind = initialSeatIndex;
-        //     // System.out.printf("Proposal null!\n");
-        // }
-        // else {
-            // initialSeatIndex = indFromProposalSet.intValue();
-            // initialSeatIndex = indFromProposalSet;
-            // ind = initialSeatIndex;
-            // proposalValid = true;
-        // }
-        if (indFromPotentialQueue == null) {
-            Random rand = new Random();
-            initialSeatIndex = rand.nextInt(this.coachnum * this.seatnum);
-            ind = initialSeatIndex;
+        if (!updateRouteIntervalCounter(route, departure, arrival, Operation.BUY)) {
+            return null;
         }
         else {
-            initialSeatIndex = indFromPotentialQueue.intValue();
-            ind = initialSeatIndex;
-        }
+            
+            Ticket ticket = null;
+            // if ((ticket = dummyTicket.getAndSet(null)) == null) {
+            ticket = new Ticket();
+            // }
+            // Ticket ticket = new Ticket();
+            long tid = this.systemtid.getAndIncrement();
+
+            // if (ticket.tid % 1000000 == 0)
+            //     printSoldTicketSetMaxElem();
+
+            // boolean potentialNotNull = false;
+
+            int ind;
+            int initialSeatIndex;
+            Integer indFromPotentialQueue = this.potentialQueue[route].dequeue();
+            // boolean proposalTaken = false;
+            // int indFromProposalSet = this.proposal[route][getRemainingTicketSetIndex(departure,arrival)].get();
+            // boolean proposalValid = false;
+            // if (indFromProposalSet == null) {
+            //     Random rand = new Random();
+            //     initialSeatIndex = rand.nextInt(this.coachnum * this.seatnum);
+            //     ind = initialSeatIndex;
+            //     // System.out.printf("Proposal null!\n");
+            // }
+            // else {
+                // initialSeatIndex = indFromProposalSet.intValue();
+                // initialSeatIndex = indFromProposalSet;
+                // ind = initialSeatIndex;
+                // proposalValid = true;
+            // }
+            if (indFromPotentialQueue == null) {
+                Random rand = new Random();
+                initialSeatIndex = rand.nextInt(this.coachnum * this.seatnum);
+                ind = initialSeatIndex;
+            }
+            else {
+                initialSeatIndex = indFromPotentialQueue.intValue();
+                ind = initialSeatIndex;
+                // potentialNotNull = true;
+            }
         // Randomly choose a seat to start
         // ind = indFromPotentialQueue;
-        int status;
-bretry: while(true)
-{
-        status = seats[route][ind].get();
-        if (intervalIsAvailable(status,departure,arrival)) {
-            // If the status is modified, retry with the same seat
-            if (!seats[route][ind].compareAndSet(
-                status,setBitsToOne(status,departure,arrival-1))) {
-                // if (proposalValid){
-                //     proposalValid = false;
-                //     proposalTaken = false;
-                //     System.out.printf("Proposal not taken!\n");
-                // }
-                continue bretry;
+            int status;
+    bretry: while(true)
+    {
+            status = seats[route][ind].get();
+            if (intervalIsAvailable(status,departure,arrival)) {
+                // If the status is modified, retry with the same seat
+                if (!seats[route][ind].compareAndSet(
+                    status,setBitsToOne(status,departure,arrival-1))) {
+                    // if (proposalValid){
+                    //     proposalValid = false;
+                    //     proposalTaken = false;
+                    //     System.out.printf("Proposal not taken!\n");
+                    // }
+                    continue bretry;
+                }
+                // If succeeds, wrap the ticket with coach and seat
+                else {
+                    int coach = seatIndexToCoach(ind);
+                    int seat = seatIndexToSeat(ind);
+                    //System.out.println("ind"+ind);
+                    //System.out.println("Success, buying ticket of " + ticket);
+                    //System.out.flush();
+                    // if (proposalValid) {
+                    //     proposalTaken = true;
+                    // }
+                    ticket.set(tid, passenger, route, coach, seat, departure, arrival);
+                    break bretry;
+                }
             }
-            // If succeeds, wrap the ticket with coach and seat
+            // If not available, choose the next seat and retry
             else {
-                int coach = seatIndexToCoach(ind);
-                int seat = seatIndexToSeat(ind);
-                //System.out.println("ind"+ind);
-                //System.out.println("Success, buying ticket of " + ticket);
-                //System.out.flush();
-                // if (proposalValid) {
-                //     proposalTaken = true;
-                // }
-                ticket.set(tid, passenger, route, coach, seat, departure, arrival);
-                break bretry;
+                // Saturate
+                if (++ind >= this.coachnum * this.seatnum) {
+                    ind = 0;
+                }
+                if (ind != initialSeatIndex) {
+                    continue bretry;
+                }
+                // If all failed, out
+                else {
+                    updateRouteIntervalCounter(route, departure, arrival, Operation.REFUND);
+                    return null;
+                }
             }
-        }
-        // If not available, choose the next seat and retry
-        else {
-            // Saturate
-            if (++ind >= this.coachnum * this.seatnum) {
-                ind = 0;
-            }
-            if (ind != initialSeatIndex) {
-                continue bretry;
-            }
-            // If all failed, out
-            else {
-                return null;
-            }
-        }
-}
-        TicketWithHash soldTicket = null;
-        // if ((soldTicket = dummyHashTicket.getAndSet(null)) == null){
-            soldTicket = new TicketWithHash();
-        // }
+    }
 
-        soldTicket.ticket = ticket;
+            // int roll = (ind - initialSeatIndex)  >= 0 ?
+            //     ind - initialSeatIndex : (ind - initialSeatIndex) + this.seatPerTrain;
+            //     System.out.printf("Buying tid %d, %susing potential, initial ind %d, final ind %d, inquiried of %d(%d%%) seats\n",
+            //         tid, potentialNotNull ? "" : "not ", initialSeatIndex, ind, roll, roll * 100 / this.seatPerTrain); 
 
-        if (!this.soldTicketSet.add(soldTicket)) {
-            System.out.println("Error adding sold ticket to hashset");
+
+            TicketWithHash soldTicket = null;
+            // if ((soldTicket = dummyHashTicket.getAndSet(null)) == null){
+                soldTicket = new TicketWithHash();
+            // }
+
+            soldTicket.ticket = ticket;
+
+            if (!this.soldTicketSet.add(soldTicket)) {
+                System.out.println("Error adding sold ticket to hashset");
+            }
+            // if (proposalTaken && proposalValid)
+            //     System.out.printf("Proposal of route %d, seat %d, coach %d taken! tid %d from %d to %d\n", 
+            //         ticket.route, ticket.seat, ticket.coach, ticket.tid, ticket.departure, ticket.arrival);
+            RegisterRequest request;
+            // if ((request = dummyRequest.getAndSet(null)) == null)
+                request = new RegisterRequest(
+                    Operation.REFUND, ticket.route, ticket.departure, ticket.arrival, status, ind);
+            // else {
+            //     request.set(Operation.REFUND, ticket.route, ticket.departure, ticket.arrival, status, ind);
+            // }
+
+            if (this.USE_PROPOSAL)
+                proposalSetProcessingQueue.enqueue(request);
+            remainingTicketProcessingQueue.enqueue(request);
+            //System.out.println("Buying ticket of " + ticket);
+            //System.out.flush();
+            return ticket;
         }
-        // if (proposalTaken && proposalValid)
-        //     System.out.printf("Proposal of route %d, seat %d, coach %d taken! tid %d from %d to %d\n", 
-        //         ticket.route, ticket.seat, ticket.coach, ticket.tid, ticket.departure, ticket.arrival);
-        RegisterRequest request;
-        // if ((request = dummyRequest.getAndSet(null)) == null)
-            request = new RegisterRequest(
-                Operation.REFUND, ticket.route, ticket.departure, ticket.arrival, status, ind);
-        // else {
-        //     request.set(Operation.REFUND, ticket.route, ticket.departure, ticket.arrival, status, ind);
-        // }
-
-        if (this.USE_PROPOSAL)
-            proposalSetProcessingQueue.enqueue(request);
-        remainingTicketProcessingQueue.enqueue(request);
-        //System.out.println("Buying ticket of " + ticket);
-        //System.out.flush();
-        return ticket;
     }
 
     public int inquiry(int route, int departure, int arrival) {
@@ -634,6 +727,7 @@ bretry: while(true)
             return false;
         }
         else {
+            updateRouteIntervalCounter(ticket.route, ticket.departure, ticket.arrival, Operation.REFUND);
             int seatIndex;
 rretry: while(true)
 {
