@@ -25,7 +25,7 @@ public class TicketingDS implements TicketingSystem {
 
     protected SOSet<TicketWithHash> soldTicketSet = new SOSet<TicketWithHash>(0x7fffff);
 
-    protected AtomicInteger[][] remainingTickets = null;
+    protected int[][] remainingTickets;
 
     protected LockFreeQueue<RegisterRequest> remainingTicketProcessingQueue = new LockFreeQueue<RegisterRequest>();
 
@@ -131,7 +131,7 @@ public class TicketingDS implements TicketingSystem {
                         for (x = lower; x < to; x++) {
                             for (y = from+1; y <= upper+1; y++) {
                                 if (x < y) {
-                                    remainingTickets[route][getRemainingTicketSetIndex(x,y)].getAndDecrement();
+                                    remainingTickets[route][getRemainingTicketSetIndex(x,y)]--;
                                     //System.out.printf("Decrease of (%d,%d), status 0x%x, from %d, to %d\n", x, y, status, from, to);
                                     //System.out.flush();
                                 }
@@ -147,7 +147,7 @@ public class TicketingDS implements TicketingSystem {
                         for (x = lower; x < to; x++) {
                             for (y = from+1; y <= upper+1; y++) {
                                 if (x < y) {
-                                    remainingTickets[route][getRemainingTicketSetIndex(x,y)].getAndIncrement();
+                                    remainingTickets[route][getRemainingTicketSetIndex(x,y)]++;
                                     //System.out.printf("Increase of (%d,%d), status 0x%x, from %d, to %d\n", x, y, status, from, to);
                                     //System.out.flush();
                                 }
@@ -270,11 +270,11 @@ public class TicketingDS implements TicketingSystem {
     // initial value of each of which is seatPerTrain
     protected void SetTicketSet() {
         int i, j = 0;
-        this.remainingTickets = new AtomicInteger[this.routenum+1][];
+        this.remainingTickets = new int[this.routenum+1][];
         for (i = 0; i <= this.routenum; i++) {
-            this.remainingTickets[i] = new AtomicInteger[this.intervalnum];
+            this.remainingTickets[i] = new int[this.intervalnum];
             for (j = 0; j < this.intervalnum; j++) {
-                this.remainingTickets[i][j] = new AtomicInteger(this.seatPerTrain);
+                this.remainingTickets[i][j] = this.seatPerTrain;
             }
         }
 
@@ -704,8 +704,8 @@ public class TicketingDS implements TicketingSystem {
     }
 
     public int inquiry(int route, int departure, int arrival) {
-        AtomicInteger remaining = this.remainingTickets[route][getRemainingTicketSetIndex(departure,arrival)];
-        return remaining.get();
+        int remaining = this.remainingTickets[route][getRemainingTicketSetIndex(departure,arrival)];
+        return remaining;
     }
 
     public boolean refundTicket(Ticket ticket) {
