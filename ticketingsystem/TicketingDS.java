@@ -31,7 +31,7 @@ public class TicketingDS implements TicketingSystem {
 
     protected AtomicInteger[][] remainingTickets;
 
-    protected LockFreeQueue<RegisterRequest> remainingTicketProcessingQueue = new LockFreeQueue<RegisterRequest>();
+    protected LinkedBlockingQueue<RegisterRequest> remainingTicketProcessingQueue = new LinkedBlockingQueue<RegisterRequest>();
 
     protected LockFreeQueue<Integer>[] potentialQueue = null;
 
@@ -121,45 +121,52 @@ public class TicketingDS implements TicketingSystem {
         public void run() {
             while (true) {
                 RegisterRequest request = null;
-                if ((request = remainingTicketProcessingQueue.dequeue()) != null) {
-                    int route = request.route;
-                    int from = request.departure;
-                    int to = request.arrival;
-                    int status = request.status;
-                    if (request.type == Operation.BUY) {
-                        int lower = getLowerBoundOfMaximumEmptyInterval(status, from);
-                        int upper = getUpperBoundOfMaximumEmptyInterval(status, to);
-                        // System.out.printf("Processing buying..Lower%d, Upper%d\n", lower, upper);
-                        // System.out.flush();
-                        int x, y;
-                        for (x = lower; x < to; x++) {
-                            for (y = from+1; y <= upper+1; y++) {
-                                if (x < y) {
-                                    int val = remainingTickets[route][getRemainingTicketSetIndex(x,y)].getAndDecrement();
-                                    // System.out.printf("Decrease of (%d,%d), status 0x%x, from %d, to %d, value from %d to %d\n",
-                                    //      x, y, status, from, to, val, val-1);
-                                    // System.out.flush();
+                try {
+                    if ((request = remainingTicketProcessingQueue.take()) != null) {
+                        int route = request.route;
+                        int from = request.departure;
+                        int to = request.arrival;
+                        int status = request.status;
+                        if (request.type == Operation.BUY) {
+                            int lower = getLowerBoundOfMaximumEmptyInterval(status, from);
+                            int upper = getUpperBoundOfMaximumEmptyInterval(status, to);
+                            // System.out.printf("Processing buying..Lower%d, Upper%d\n", lower, upper);
+                            // System.out.flush();
+                            int x, y;
+                            for (x = lower; x < to; x++) {
+                                for (y = from+1; y <= upper+1; y++) {
+                                    if (x < y) {
+                                        int val = remainingTickets[route][getRemainingTicketSetIndex(x,y)].getAndDecrement();
+                                        // System.out.printf("Decrease of (%d,%d), status 0x%x, from %d, to %d, value from %d to %d\n",
+                                        //      x, y, status, from, to, val, val-1);
+                                        // System.out.flush();
+                                    }
+                                }
+                            }
+                        }
+                        else if (request.type == Operation.REFUND) {
+                            int lower = getLowerBoundOfMaximumEmptyInterval(status, from);
+                            int upper = getUpperBoundOfMaximumEmptyInterval(status, to);
+                            // System.out.printf("Processing refunding..Lower%d, Upper%d\n", lower, upper);
+                            // System.out.flush();
+                            int x, y;
+                            for (x = lower; x < to; x++) {
+                                for (y = from+1; y <= upper+1; y++) {
+                                    if (x < y) {
+                                        int val = remainingTickets[route][getRemainingTicketSetIndex(x,y)].getAndIncrement();
+                                        // System.out.printf("Increase of (%d,%d), status 0x%x, from %d, to %d, value from %d to %d\n",
+                                        //  x, y, status, from, to, val, val+1);
+                                        // System.out.flush();
+                                    }
                                 }
                             }
                         }
                     }
-                    else if (request.type == Operation.REFUND) {
-                        int lower = getLowerBoundOfMaximumEmptyInterval(status, from);
-                        int upper = getUpperBoundOfMaximumEmptyInterval(status, to);
-                        // System.out.printf("Processing refunding..Lower%d, Upper%d\n", lower, upper);
-                        // System.out.flush();
-                        int x, y;
-                        for (x = lower; x < to; x++) {
-                            for (y = from+1; y <= upper+1; y++) {
-                                if (x < y) {
-                                    int val = remainingTickets[route][getRemainingTicketSetIndex(x,y)].getAndIncrement();
-                                    // System.out.printf("Increase of (%d,%d), status 0x%x, from %d, to %d, value from %d to %d\n",
-                                    //  x, y, status, from, to, val, val+1);
-                                    // System.out.flush();
-                                }
-                            }
-                        }
-                    }
+
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } finally {
+                    continue;
                 }
                 
             }
@@ -703,7 +710,7 @@ public class TicketingDS implements TicketingSystem {
 
             if (this.USE_PROPOSAL)
                 proposalSetProcessingQueue.enqueue(request);
-            remainingTicketProcessingQueue.enqueue(request);
+            remainingTicketProcessingQueue.offer(request);
             //System.out.println("Buying ticket of " + ticket);
             //System.out.flush();
             return ticket;
@@ -753,7 +760,7 @@ rretry: while(true)
 
             if (this.USE_PROPOSAL)
                 proposalSetProcessingQueue.enqueue(request);
-            remainingTicketProcessingQueue.enqueue(request);
+            remainingTicketProcessingQueue.offer(request);
             // dummyTicket.set(ticket);
             return true;
 }
