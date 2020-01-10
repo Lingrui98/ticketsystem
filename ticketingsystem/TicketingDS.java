@@ -351,7 +351,7 @@ public class TicketingDS implements TicketingSystem {
         SetRemainingTicketSetIndexMap();
         if (this.USE_POTENTIAL_QUEUE)
             initPotentialQueue();
-        printParams();
+        // printParams();
         this.ticketRegisteringThread = new RemainingTicketProcessingThread(); 
         this.ticketRegisteringThread.setDaemon(true);
         this.ticketRegisteringThread.start();
@@ -375,7 +375,7 @@ public class TicketingDS implements TicketingSystem {
         SetRemainingTicketSetIndexMap();
         if (this.USE_POTENTIAL_QUEUE)
             initPotentialQueue();
-        printParams();
+        // printParams();
         this.ticketRegisteringThread = new RemainingTicketProcessingThread(); 
         this.ticketRegisteringThread.setDaemon(true);
         this.ticketRegisteringThread.start();
