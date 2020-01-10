@@ -571,8 +571,8 @@ public class TicketingDS implements TicketingSystem {
     // }
 
     public Ticket buyTicket(String passenger, int route, int departure, int arrival) {
-        // if (isSoldOut(route, departure, arrival))
-        //     return null;
+        if (isSoldOut(route, departure, arrival))
+            return null;
 
         if (!updateRouteIntervalCounter(route, departure, arrival, Operation.BUY)) {
             return null;
