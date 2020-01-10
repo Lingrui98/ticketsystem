@@ -2,10 +2,14 @@ package ticketingsystem;
 
 import java.util.*;
 
-public class TicketWithHash {
+public class TicketWithHash implements Comparable<TicketWithHash>{
     public Ticket ticket;
 
     public TicketWithHash() {
+    }
+
+    public int compareTo(TicketWithHash t) {
+        return (int)(t.ticket.tid - this.ticket.tid);
     }
 
     public int hashCode() {

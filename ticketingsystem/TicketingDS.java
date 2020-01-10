@@ -25,8 +25,8 @@ public class TicketingDS implements TicketingSystem {
 
     protected AtomicInteger[][] seats = null;
 
-    protected ConcurrentHashMap<TicketWithHash, Boolean> soldTicketMap = new ConcurrentHashMap<TicketWithHash, Boolean>();
-    protected Set<TicketWithHash> soldTicketSet = Collections.newSetFromMap(soldTicketMap);
+    // protected ConcurrentHashMap<TicketWithHash, Boolean> soldTicketMap = new ConcurrentHashMap<TicketWithHash, Boolean>();
+    protected ConcurrentSkipListSet<TicketWithHash> soldTicketSet = new ConcurrentSkipListSet<TicketWithHash>();
     // protected SOSet<TicketWithHash> soldTicketSet = new SOSet<TicketWithHash>(0x7fffff);
 
     protected AtomicInteger[][] remainingTickets;
