@@ -1,7 +1,9 @@
 package ticketingsystem;
 
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
 import java.util.*;
+
 
 public class TicketingDS implements TicketingSystem {
 
@@ -23,9 +25,11 @@ public class TicketingDS implements TicketingSystem {
 
     protected AtomicInteger[][] seats = null;
 
-    protected SOSet<TicketWithHash> soldTicketSet = new SOSet<TicketWithHash>(0x7fffff);
+    protected ConcurrentHashMap<TicketWithHash, Boolean> soldTicketMap = new ConcurrentHashMap<TicketWithHash, Boolean>();
+    protected Set<TicketWithHash> soldTicketSet = Collections.newSetFromMap(soldTicketMap);
+    // protected SOSet<TicketWithHash> soldTicketSet = new SOSet<TicketWithHash>(0x7fffff);
 
-    protected volatile int[][] remainingTickets;
+    protected AtomicInteger[][] remainingTickets;
 
     protected LockFreeQueue<RegisterRequest> remainingTicketProcessingQueue = new LockFreeQueue<RegisterRequest>();
 
@@ -125,15 +129,16 @@ public class TicketingDS implements TicketingSystem {
                     if (request.type == Operation.BUY) {
                         int lower = getLowerBoundOfMaximumEmptyInterval(status, from);
                         int upper = getUpperBoundOfMaximumEmptyInterval(status, to);
-                        //System.out.printf("Processing buying..Lower%d, Upper%d\n", lower, upper);
-                        //System.out.flush();
+                        // System.out.printf("Processing buying..Lower%d, Upper%d\n", lower, upper);
+                        // System.out.flush();
                         int x, y;
                         for (x = lower; x < to; x++) {
                             for (y = from+1; y <= upper+1; y++) {
                                 if (x < y) {
-                                    remainingTickets[route][getRemainingTicketSetIndex(x,y)]--;
-                                    //System.out.printf("Decrease of (%d,%d), status 0x%x, from %d, to %d\n", x, y, status, from, to);
-                                    //System.out.flush();
+                                    int val = remainingTickets[route][getRemainingTicketSetIndex(x,y)].getAndDecrement();
+                                    // System.out.printf("Decrease of (%d,%d), status 0x%x, from %d, to %d, value from %d to %d\n",
+                                    //      x, y, status, from, to, val, val-1);
+                                    // System.out.flush();
                                 }
                             }
                         }
@@ -141,15 +146,16 @@ public class TicketingDS implements TicketingSystem {
                     else if (request.type == Operation.REFUND) {
                         int lower = getLowerBoundOfMaximumEmptyInterval(status, from);
                         int upper = getUpperBoundOfMaximumEmptyInterval(status, to);
-                        //System.out.printf("Processing refunding..Lower%d, Upper%d\n", lower, upper);
-                        //System.out.flush();
+                        // System.out.printf("Processing refunding..Lower%d, Upper%d\n", lower, upper);
+                        // System.out.flush();
                         int x, y;
                         for (x = lower; x < to; x++) {
                             for (y = from+1; y <= upper+1; y++) {
                                 if (x < y) {
-                                    remainingTickets[route][getRemainingTicketSetIndex(x,y)]++;
-                                    //System.out.printf("Increase of (%d,%d), status 0x%x, from %d, to %d\n", x, y, status, from, to);
-                                    //System.out.flush();
+                                    int val = remainingTickets[route][getRemainingTicketSetIndex(x,y)].getAndIncrement();
+                                    // System.out.printf("Increase of (%d,%d), status 0x%x, from %d, to %d, value from %d to %d\n",
+                                    //  x, y, status, from, to, val, val+1);
+                                    // System.out.flush();
                                 }
                             }
                         }
@@ -270,11 +276,11 @@ public class TicketingDS implements TicketingSystem {
     // initial value of each of which is seatPerTrain
     protected void SetTicketSet() {
         int i, j = 0;
-        this.remainingTickets = new int[this.routenum+1][];
+        this.remainingTickets = new AtomicInteger[this.routenum+1][];
         for (i = 0; i <= this.routenum; i++) {
-            this.remainingTickets[i] = new int[this.intervalnum];
+            this.remainingTickets[i] = new AtomicInteger[this.intervalnum];
             for (j = 0; j < this.intervalnum; j++) {
-                this.remainingTickets[i][j] = this.seatPerTrain;
+                this.remainingTickets[i][j] = new AtomicInteger(this.seatPerTrain);
             }
         }
 
@@ -470,7 +476,8 @@ public class TicketingDS implements TicketingSystem {
 
     // Check if the bit pos in status is 1
     public final boolean checkGivenBit(int status, int pos) {
-        return !intervalIsAvailable(status,pos,pos+1);
+        int base = setBitsToOne(0,pos,pos);
+        return (base & status) == base;
     }
 
     private final int mask(int num, int x, int y) {
@@ -555,10 +562,10 @@ public class TicketingDS implements TicketingSystem {
         }
     }
 
-    private void printSoldTicketSetMaxElem() {
-        int max = soldTicketSet.getMax();
-        System.out.println("Maximum set num is " + max);
-    }
+    // private void printSoldTicketSetMaxElem() {
+    //     int max = soldTicketSet.getMax();
+    //     System.out.println("Maximum set num is " + max);
+    // }
     
     // private void setTicket(Ticket ticket, long tid, String passenger, int route, int coach, int seat, int departure, int arrival) {
     //     ticket.tid = tid;
@@ -689,7 +696,7 @@ public class TicketingDS implements TicketingSystem {
             RegisterRequest request;
             // if ((request = dummyRequest.getAndSet(null)) == null)
                 request = new RegisterRequest(
-                    Operation.REFUND, ticket.route, ticket.departure, ticket.arrival, status, ind);
+                    Operation.BUY, ticket.route, ticket.departure, ticket.arrival, status, ind);
             // else {
             //     request.set(Operation.REFUND, ticket.route, ticket.departure, ticket.arrival, status, ind);
             // }
@@ -704,7 +711,7 @@ public class TicketingDS implements TicketingSystem {
     }
 
     public int inquiry(int route, int departure, int arrival) {
-        int remaining = this.remainingTickets[route][getRemainingTicketSetIndex(departure,arrival)];
+        int remaining = this.remainingTickets[route][getRemainingTicketSetIndex(departure,arrival)].get();
         return remaining;
     }
 

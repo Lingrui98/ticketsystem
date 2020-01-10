@@ -29,7 +29,7 @@ public class Trace {
 	final static int seatnum = 3; // seat is allocated from 1 to 3
 	final static int stationnum = 4; // station is designed from 1 to 4
 
-	final static int testnum = 100000;
+	final static int testnum = 10000;
 	final static int retpc = 5; // return ticket operation is 10% percent
 	final static int buypc = 20; // buy ticket operation is 30% percent
 	final static int inqpc = 100; //inquiry ticket operation is 60% percent
