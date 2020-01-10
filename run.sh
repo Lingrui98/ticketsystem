@@ -1,6 +1,6 @@
 git pull
 rm ticketingsystem/*.class
-if [-f "./trace1.sh"];
+if [ -e "./trace1.sh"];
 then
     ./trace1.sh
     java ticketingsystem/Trace1
