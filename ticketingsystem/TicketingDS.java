@@ -25,7 +25,7 @@ public class TicketingDS implements TicketingSystem {
 
     protected SOSet<TicketWithHash> soldTicketSet = new SOSet<TicketWithHash>(0x7fffff);
 
-    protected int[][] remainingTickets;
+    protected volatile int[][] remainingTickets;
 
     protected LockFreeQueue<RegisterRequest> remainingTicketProcessingQueue = new LockFreeQueue<RegisterRequest>();
 
