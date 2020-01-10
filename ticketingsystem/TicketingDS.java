@@ -491,19 +491,14 @@ public class TicketingDS implements TicketingSystem {
         if (type == Operation.BUY) {
             for (inter = departure; inter < arrival; inter++) {
                 int count;
-                do {
-                    count = routeIntervalCounter[route][inter].get();
-
-                    if (count >= this.seatPerTrain) {
-                        // Roll back
-                        for (int i = 0; i < inter - departure; i++) {
-                            routeIntervalCounter[route][i].getAndDecrement();
-                        }
-                        return false;
+                // Acquire intervals        
+                if (routeIntervalCounter[route][inter].getAndIncrement() >= this.seatPerTrain) {
+                    // Roll back
+                    for (int i = departure; i <= inter; i++) {
+                        routeIntervalCounter[route][i].getAndDecrement();
                     }
-
+                    return false;
                 }
-                while (!routeIntervalCounter[route][inter].compareAndSet(count, count+1));
             }
             return true;
         }
