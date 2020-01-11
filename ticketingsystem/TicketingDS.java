@@ -26,8 +26,6 @@ public class TicketingDS implements TicketingSystem {
     protected AtomicInteger[][] seats = null;
 
     protected ConcurrentHashMap<Long, Boolean> soldTicketMap = new ConcurrentHashMap<Long, Boolean>();
-    // protected ConcurrentSkipListSet<TicketWithHash> soldTicketSet = new ConcurrentSkipListSet<TicketWithHash>();
-    // protected SOSet<TicketWithHash> soldTicketSet = new SOSet<TicketWithHash>(0x7fffff);
     protected Set<Long> soldTicketSet = Collections.newSetFromMap(soldTicketMap);
 
     protected AtomicInteger[][] remainingTickets;
@@ -36,24 +34,12 @@ public class TicketingDS implements TicketingSystem {
 
     protected LockFreeQueue<Integer>[] potentialQueue = null;
 
-    protected SOSet<Integer>[][] ticketProposalSet = null;
-
     protected LockFreeQueue<RegisterRequest> proposalSetProcessingQueue = new LockFreeQueue<RegisterRequest>();
 
     protected AtomicInteger[][] proposal;
 
     protected AtomicInteger[][] routeIntervalCounter;
 
-    // protected Pool<Ticket> ticketPool = new Pool<Ticket>("Ticket Pool");
-    // protected Pool<TicketWithHash> hashTicketPool = new Pool<TicketWithHash>("Hash Ticket Pool");
-
-    // protected LockFreeQueue<Ticket> dummyTickets = new LockFreeQueue<Ticket>();
-
-    // protected LockFreeQueue<TicketWithHash> dummyHashTickets = new LockFreeQueue<TicketWithHash>();
-
-    public AtomicReference<Ticket> dummyTicket = new AtomicReference<Ticket>(null);
-    public AtomicReference<TicketWithHash> dummyHashTicket = new AtomicReference<TicketWithHash>(null);
-    public AtomicReference<RegisterRequest> dummyRequest = new AtomicReference<RegisterRequest>(null);
 
     Thread ticketRegisteringThread;
 
@@ -114,8 +100,6 @@ public class TicketingDS implements TicketingSystem {
         this.remainingTicketProcessingQueue = null;
         if (this.USE_POTENTIAL_QUEUE)
             this.potentialQueue = null;
-        if (this.USE_PROPOSAL)
-            this.ticketProposalSet = null;
         this.proposalSetProcessingQueue = null;
     }
 
@@ -170,81 +154,6 @@ public class TicketingDS implements TicketingSystem {
         }
     }
 
-    public class proposalSetProcessingThread extends Thread {
-        public void run() {
-            while (true) {
-                RegisterRequest request = null;
-                if ((request = proposalSetProcessingQueue.dequeue()) != null) {
-                    int route = request.route;
-                    int from = request.departure;
-                    int to = request.arrival;
-                    int status = request.status;
-                    int ind = request.seatIndex;
-                    // Mem usage should be lowered
-                    Integer elem = new Integer(ind);
-                    if (request.type == Operation.BUY) {
-                        int lower = getLowerBoundOfMaximumEmptyInterval(status, from);
-                        int upper = getUpperBoundOfMaximumEmptyInterval(status, to);
-                        //System.out.printf("Processing buying..Lower%d, Upper%d\n", lower, upper);
-                        //System.out.flush();
-                        int x, y;
-                        for (x = lower; x < to; x++) {
-                            for (y = from+1; y <= upper+1; y++) {
-                                if (x < y) {
-                                    ticketProposalSet[route][getRemainingTicketSetIndex(x,y)].remove(elem);
-                                    //System.out.printf("Decrease of (%d,%d), status 0x%x, from %d, to %d\n", x, y, status, from, to);
-                                    //System.out.flush();
-                                }
-                            }
-                        }
-                    }
-                    else if (request.type == Operation.REFUND) {
-                        int lower = getLowerBoundOfMaximumEmptyInterval(status, from);
-                        int upper = getUpperBoundOfMaximumEmptyInterval(status, to);
-                        //System.out.printf("Processing refunding..Lower%d, Upper%d\n", lower, upper);
-                        //System.out.flush();
-                        int x, y;
-                        for (x = lower; x < to; x++) {
-                            for (y = from+1; y <= upper+1; y++) {
-                                if (x < y) {
-                                    ticketProposalSet[route][getRemainingTicketSetIndex(x,y)].add(elem);
-                                    //System.out.printf("Increase of (%d,%d), status 0x%x, from %d, to %d\n", x, y, status, from, to);
-                                    //System.out.flush();
-                                }
-                            }
-                        }
-                    }
-                }
-                
-            }
-        }
-    }
-
-   // TODO: use correct logic
-    public class proposalSettingThread extends Thread {
-        public void run() {
-            int routenum = getRouteNum();
-            int intervalnum = getIntervalNum();
-            while (true) {
-                for (int r = 1; r <= routenum; r++) {
-                    for (int interval = 0; interval < intervalnum; interval++) {
-                        Integer prop = ticketProposalSet[r][interval].propose();
-                        if (prop == null)
-                            ticketProposalSet[r][interval].setProposal();
-                        else {
-                            proposal[r][interval].set(prop.intValue());
-                            continue;
-                        }
-                        prop = ticketProposalSet[r][interval].propose();
-                        if (prop == null)
-                            continue;
-                        else
-                            proposal[r][interval].set(prop.intValue());
-                    }
-                }                
-            }
-        }
-    }
 
     private void InitializeSeats() {
         this.seats = new AtomicInteger[this.routenum+1][];
@@ -293,16 +202,6 @@ public class TicketingDS implements TicketingSystem {
     public void printParams() {
         System.out.printf("%d routes, %d coaches, %d seats, %d stations\n", 
                 this.routenum, this.coachnum, this.seatnum, this.stationnum);
-        // System.out.printf("-----------------------------------\n");
-        // System.out.printf("Space consumed:\n");
-        // System.out.printf("remainingTicketSetIndexMap: %d\n", sizeof(remainingTicketSetIndexMap));
-        // System.out.printf("seats: %d\n", sizeof(seats));
-        // System.out.printf("soldTicketSet: %d\n", sizeof(soldTicketSet));
-        // System.out.printf("remainingTickets: %d\n", sizeof(remainingTickets));
-        // System.out.printf("remainingTicketProcessingQueue: %d\n", sizeof(remainingTicketProcessingQueue));
-        // System.out.printf("potentialQueue: %d\n", sizeof(potentialQueue));
-        // System.out.printf("ticketProposalSet: %d\n", sizeof(ticketProposalSet));
-        // System.out.printf("proposalSetProcessingQueue: %d\n", sizeof(proposalSetProcessingQueue));
     }
 
     private void initPotentialQueue() {
@@ -314,29 +213,6 @@ public class TicketingDS implements TicketingSystem {
             }
         }
     }
-
-    private void initProposalSet() {
-        this.ticketProposalSet = new SOSet[this.routenum+1][];
-        this.proposal = new AtomicInteger[this.routenum+1][];
-        for (int i = 0; i <= this.routenum; i++) {
-            this.ticketProposalSet[i] = new SOSet[this.intervalnum];
-            this.proposal[i] = new AtomicInteger[this.intervalnum];
-            for (int j = 0; j < this.intervalnum; j++) {
-                this.ticketProposalSet[i][j] = new SOSet<Integer>(0x3fff, true); // Less space consumed
-                for (int k = 0; k < this.seatPerTrain; k++) {
-                    this.ticketProposalSet[i][j].add(new Integer(k));
-                }
-                this.proposal[i][j] = new AtomicInteger();
-            }
-        }
-    }
-
-    // private void initSoldOutIndicator() {
-    //     this.initSoldOutIndicator = new AtomicInteger[this.routenum+1];
-    //     for (int i = 0; i <= this.routenum; i++) {
-    //         thins.initSoldOutIndicator[i] = new AtomicInteger(0);
-    //     }
-    // }
 
     private void initRouteIntervalCounter() {
         this.routeIntervalCounter = new AtomicInteger[this.routenum+1][];
@@ -365,43 +241,10 @@ public class TicketingDS implements TicketingSystem {
         this.ticketRegisteringThread = new RemainingTicketProcessingThread(); 
         this.ticketRegisteringThread.setDaemon(true);
         this.ticketRegisteringThread.start();
-        if (this.USE_PROPOSAL) {
-            initProposalSet();
-            this.proposalDealingThread = new proposalSetProcessingThread();
-            this.proposalDealingThread.setDaemon(true);
-            this.proposalDealingThread.start();
-            this.proposalingThread = new proposalSettingThread();
-            this.proposalingThread.setDaemon(true);
-            this.proposalingThread.start();
-        }
         if (this.USE_SOLDOUT_INDICATOR) {
             initRouteIntervalCounter();
         }
     }
-
-    // public TicketingDS() {
-    //     InitializeSeats();
-    //     SetTicketSet();
-    //     SetRemainingTicketSetIndexMap();
-    //     if (this.USE_POTENTIAL_QUEUE)
-    //         initPotentialQueue();
-    //     // printParams();
-    //     this.ticketRegisteringThread = new RemainingTicketProcessingThread(); 
-    //     this.ticketRegisteringThread.setDaemon(true);
-    //     this.ticketRegisteringThread.start();
-    //     if (this.USE_PROPOSAL) {
-    //         initProposalSet();
-    //         this.proposalDealingThread = new proposalSetProcessingThread();
-    //         this.proposalDealingThread.setDaemon(true);
-    //         this.proposalDealingThread.start();
-    //         this.proposalingThread = new proposalSettingThread();
-    //         this.proposalingThread.setDaemon(true);
-    //         this.proposalingThread.start();
-    //     }
-    //     if (this.USE_SOLDOUT_INDICATOR) {
-    //         initRouteIntervalCounter();
-    //     }
-    // }
 
 
     AtomicLong systemtid = new AtomicLong(2);
@@ -449,7 +292,6 @@ public class TicketingDS implements TicketingSystem {
         int xBase = 0xffffffff << (x - 1);
         int yBase = 0xffffffff >>> (32 - y);
         // System.out.printf("num is 0x%x, from %d, to %d, is set one to 0x%x\n",
-        //  num, x, y+1, num | (xBase & yBase));    
         return num | (xBase & yBase);
     }
 
@@ -461,7 +303,6 @@ public class TicketingDS implements TicketingSystem {
         int yBase = 0xffffffff  << y;
         // System.out.printf("num is 0x%x, from %d, to %d, is set zero to 0x%x\n",
         //  num, x, y+1, num & (xBase | yBase)); 
-        // yBase = ~yBase;
         return num & (xBase | yBase);
     }
 
@@ -469,9 +310,6 @@ public class TicketingDS implements TicketingSystem {
     // if status[x,y-1] == 00...0, return true, else return false
     public final boolean intervalIsAvailable(int status, int from, int to) {
         int base = setBitsToZero(0xffffffff, from, to-1);
-        // int xBase = 0xffffffff >>> (33 - from);
-        // int yBase = 0xffffffff << (to - 1);
-        // int base = 0xffffffff & (xBase | yBase);
         boolean res = (status | base) == base;
         // System.out.printf("status is 0x%x, base is 0x%x, from %d, to %d, is %s available\n",
         //  status, base, from, to, res ? "" : "not");
@@ -610,20 +448,6 @@ public class TicketingDS implements TicketingSystem {
         return finalTid;       
     }
 
-    // private void printSoldTicketSetMaxElem() {
-    //     int max = soldTicketSet.getMax();
-    //     System.out.println("Maximum set num is " + max);
-    // }
-    
-    // private void setTicket(Ticket ticket, long tid, String passenger, int route, int coach, int seat, int departure, int arrival) {
-    //     ticket.tid = tid;
-    //     ticket.passenger = passenger;
-    //     ticket.route = route;
-    //     ticket.coach = coach;
-    //     ticket.seat = seat;
-    //     ticket.departure = departure;
-    //     ticket.arrival = arrival;
-    // }
 
     public Ticket buyTicket(String passenger, int route, int departure, int arrival) {
         if (isSoldOut(route, departure, arrival))
@@ -634,36 +458,16 @@ public class TicketingDS implements TicketingSystem {
         }
         else {
             
-            // Ticket ticket = null;
-            // // if ((ticket = dummyTicket.getAndSet(null)) == null) {
-            // ticket = ticketPool.get();
-            // }
             Ticket ticket = new Ticket();
             long tid = this.systemtid.getAndIncrement();
 
             // if (ticket.tid % 1000000 == 0)
             //     printSoldTicketSetMaxElem();
 
-            // boolean potentialNotNull = false;
 
             int ind;
             int initialSeatIndex;
             Integer indFromPotentialQueue = this.potentialQueue[route].dequeue();
-            // boolean proposalTaken = false;
-            // int indFromProposalSet = this.proposal[route][getRemainingTicketSetIndex(departure,arrival)].get();
-            // boolean proposalValid = false;
-            // if (indFromProposalSet == null) {
-            //     Random rand = new Random();
-            //     initialSeatIndex = rand.nextInt(this.coachnum * this.seatnum);
-            //     ind = initialSeatIndex;
-            //     // System.out.printf("Proposal null!\n");
-            // }
-            // else {
-                // initialSeatIndex = indFromProposalSet.intValue();
-                // initialSeatIndex = indFromProposalSet;
-                // ind = initialSeatIndex;
-                // proposalValid = true;
-            // }
             if (indFromPotentialQueue == null) {
                 Random rand = new Random();
                 initialSeatIndex = rand.nextInt(this.coachnum * this.seatnum);
@@ -672,7 +476,6 @@ public class TicketingDS implements TicketingSystem {
             else {
                 initialSeatIndex = indFromPotentialQueue.intValue();
                 ind = initialSeatIndex;
-                // potentialNotNull = true;
             }
         // Randomly choose a seat to start
         // ind = indFromPotentialQueue;
@@ -684,11 +487,6 @@ public class TicketingDS implements TicketingSystem {
                 // If the status is modified, retry with the same seat
                 if (!seats[route][ind].compareAndSet(
                     status,setBitsToOne(status,departure,arrival-1))) {
-                    // if (proposalValid){
-                    //     proposalValid = false;
-                    //     proposalTaken = false;
-                    //     System.out.printf("Proposal not taken!\n");
-                    // }
                     continue bretry;
                 }
                 // If succeeds, wrap the ticket with coach and seat
@@ -698,9 +496,6 @@ public class TicketingDS implements TicketingSystem {
                     //System.out.println("ind"+ind);
                     //System.out.println("Success, buying ticket of " + ticket);
                     //System.out.flush();
-                    // if (proposalValid) {
-                    //     proposalTaken = true;
-                    // }
                     ticket.set(tid, passenger, route, coach, seat, departure, arrival);
                     break bretry;
                 }
@@ -717,38 +512,20 @@ public class TicketingDS implements TicketingSystem {
                 // If all failed, out
                 else {
                     updateRouteIntervalCounter(route, departure, arrival, Operation.REFUND);
-                    // ticketPool.release(ticket);
                     return null;
                 }
             }
     }
 
-            // int roll = (ind - initialSeatIndex)  >= 0 ?
-            //     ind - initialSeatIndex : (ind - initialSeatIndex) + this.seatPerTrain;
-            //     System.out.printf("Buying tid %d, %susing potential, initial ind %d, final ind %d, inquiried of %d(%d%%) seats\n",
-            //         tid, potentialNotNull ? "" : "not ", initialSeatIndex, ind, roll, roll * 100 / this.seatPerTrain); 
 
             Long soldTicket = new Long(wrapTid(ticket));
-            // TicketWithHash soldTicket = null;
-            // if ((soldTicket = dummyHashTicket.getAndSet(null)) == null){
-            //     soldTicket = new TicketWithHash();
-            // }
-
-            // soldTicket.ticket = ticket;
 
             if (!this.soldTicketSet.add(soldTicket)) {
                 System.out.println("Error adding sold ticket to hashset");
             }
-            // if (proposalTaken && proposalValid)
-            //     System.out.printf("Proposal of route %d, seat %d, coach %d taken! tid %d from %d to %d\n", 
-            //         ticket.route, ticket.seat, ticket.coach, ticket.tid, ticket.departure, ticket.arrival);
             RegisterRequest request;
-            // if ((request = dummyRequest.getAndSet(null)) == null)
                 request = new RegisterRequest(
                     Operation.BUY, ticket.route, ticket.departure, ticket.arrival, status, ind);
-            // else {
-            //     request.set(Operation.REFUND, ticket.route, ticket.departure, ticket.arrival, status, ind);
-            // }
 
             if (this.USE_PROPOSAL)
                 proposalSetProcessingQueue.enqueue(request);
@@ -766,15 +543,9 @@ public class TicketingDS implements TicketingSystem {
 
     public boolean refundTicket(Ticket ticket) {
 
-        // TicketWithHash soldTicket = null;
-        // if ((soldTicket = dummyHashTicket.getAndSet(null)) == null) {
         Long soldTicket = new Long(wrapTid(ticket));
-        // }
-
-        // soldTicket.ticket = ticket;
 
         if (!soldTicketSet.remove(soldTicket)) {
-            // dummyHashTicket.set(soldTicket);
             return false;
         }
         else {
@@ -793,19 +564,12 @@ rretry: while(true)
                 this.potentialQueue[ticket.route].enqueue(new Integer(seatIndex));
             
             RegisterRequest request = null;
-            // if ((request = dummyRequest.getAndSet(null)) == null)
                 request = new RegisterRequest(
                     Operation.REFUND, ticket.route, ticket.departure, ticket.arrival, status, seatIndex);
-            // else {
-            //     request.set(Operation.REFUND, ticket.route, ticket.departure, ticket.arrival, status, seatIndex);
-            // }
 
             if (this.USE_PROPOSAL)
                 proposalSetProcessingQueue.enqueue(request);
             remainingTicketProcessingQueue.enqueue(request);
-            // hashTicketPool.release(soldTicket);
-            // ticketPool.release(ticket);
-            // dummyTicket.set(ticket);
             return true;
 }
 
