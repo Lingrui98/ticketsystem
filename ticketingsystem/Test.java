@@ -29,9 +29,9 @@ class TestResult {
     @Override
     public String toString() {
         return "TestResult{" +
-                "avgSingleBuyTicketTime=" + String.format("%.2f", avgSingleBuyTicketTime) + "ms" +
-                ", avgSingleRefundTime=" + String.format("%.2f", avgSingleRefundTime) + "ms" +
-                ", avgSingleInquiryTime=" + String.format("%.2f", avgSingleInquiryTime) + "ms" +
+                "avgSingleBuyTicketTime=" + String.format("%.6f", avgSingleBuyTicketTime) + "ms" +
+                ", avgSingleRefundTime=" + String.format("%.6f", avgSingleRefundTime) + "ms" +
+                ", avgSingleInquiryTime=" + String.format("%.6f", avgSingleInquiryTime) + "ms" +
                 ", throughput=" + String.format("%.2f", throughput) + "times/s" +
                 '}';
     }
