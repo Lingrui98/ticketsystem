@@ -28,17 +28,10 @@ class TestResult {
 
     @Override
     public String toString() {
-        BigDecimal b1 = new BigDecimal(avgSingleBuyTicketTime);
-        avgSingleBuyTicketTime = b1.setScale(6, BigDecimal.ROUND_HALF_UP).doubleValue();
-        BigDecimal b2 = new BigDecimal(avgSingleInquiryTime);
-        avgSingleInquiryTime = b2.setScale(6, BigDecimal.ROUND_HALF_UP).doubleValue();
-        BigDecimal b3 = new BigDecimal(avgSingleRefundTime);
-        avgSingleRefundTime = b3.setScale(6, BigDecimal.ROUND_HALF_UP).doubleValue();
-
         return "TestResult{" +
-                "avgSingleBuyTicketTime=" + avgSingleBuyTicketTime + "ms" +
-                ", avgSingleRefundTime=" + avgSingleRefundTime + "ms" +
-                ", avgSingleInquiryTime=" + avgSingleInquiryTime + "ms" +
+                "avgSingleBuyTicketTime=" + String.format("%.2f", avgSingleBuyTicketTime) + "ms" +
+                ", avgSingleRefundTime=" + String.format("%.2f", avgSingleRefundTime) + "ms" +
+                ", avgSingleInquiryTime=" + String.format("%.2f", avgSingleInquiryTime) + "ms" +
                 ", throughput=" + String.format("%.2f", throughput) + "times/s" +
                 '}';
     }
@@ -65,7 +58,6 @@ public class Test {
 
         final int[][] executeCount = new int[threadnum][3];
 
-        long startTime = System.currentTimeMillis();
         final TicketingDS tds = new TicketingDS(routenum, coachnum, seatnum, stationnum, threadnum);
 
         for (int i = 0; i < threadnum; i++) {
@@ -113,8 +105,11 @@ public class Test {
                     }
                 }
             });
-            threads[i].start();
         }
+        long startTime = System.currentTimeMillis();
+		for (int i = 0; i < threadnum; i++) {
+            threads[i].start();
+		}
 
         for (int i = 0; i < threadnum; i++) {
             threads[i].join();
@@ -143,13 +138,9 @@ public class Test {
         return test(threadnum, 500000, 20, 15, 100, 10);
     }
 
-    public TestResult test() throws Exception {
-        return test(16);
-    }
-
     public static void main(String[] args) throws Exception {
         int[] thread_nums = {4, 8, 16, 32, 64, 96};
-        int each = 5;
+        int each = 10;
 
         Test test = new Test();
 
