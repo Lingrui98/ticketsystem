@@ -1,111 +1,4 @@
-// package ticketingsystem;
-
-// import java.util.*;
-
-// import java.util.concurrent.atomic.AtomicInteger;
-
-// public class Test {
-// 	final static int threadnum = 2;
-// 	final static int routenum = 3; // route is designed from 1 to 3
-// 	final static int coachnum = 3; // coach is arranged from 1 to 3
-// 	final static int seatnum = 3; // seat is allocated from 1 to 3
-// 	final static int stationnum = 4; // station is designed from 1 to 4
-
-// 	final static int testnum = 10000;
-// 	final static int retpc = 10; // return ticket operation is 10% percent
-// 	final static int buypc = 40; // buy ticket operation is 30% percent
-// 	final static int inqpc = 100; //inquiry ticket operation is 60% percent
-
-// 	static String passengerName() {
-// 		Random rand = new Random();
-// 		long uid = rand.nextInt(testnum);
-// 		return "passenger" + uid; 
-// 	}
-
-// 	public static class TestThread extends Thread {
-// 		TicketingDS tds;
-// 		public TestThread(TicketingDS tds) {
-// 			this.tds = tds;
-// 		}
-// 		public void run() {
-// 			Random rand = new Random();
-//             Ticket ticket = new Ticket();
-//             ArrayList<Ticket> soldTicket = new ArrayList<Ticket>();
-            
-//             //System.out.println(ThreadId.get());
-//             for (int i = 0; i < testnum; i++) {
-//             	int sel = rand.nextInt(inqpc);
-//             	if (0 <= sel && sel < retpc && soldTicket.size() > 0) { // return ticket
-//             		int select = rand.nextInt(soldTicket.size());
-//            		if ((ticket = soldTicket.remove(select)) != null) {
-//             			if (tds.refundTicket(ticket)) {
-//             				// System.out.println("TicketRefund" + " " + ticket.tid + " " + ticket.passenger + " " + ticket.route + " " + ticket.coach  + " " + ticket.departure + " " + ticket.arrival + " " + ticket.seat);
-//             				// System.out.flush();
-//             			} else {
-//             				System.out.println("ErrOfRefund");
-//             				System.out.flush();
-//             			}
-//             		} else {
-//             			System.out.println("ErrOfRefund");
-//         				System.out.flush();
-//             		}
-//             	} else if (retpc <= sel && sel < buypc) { // buy ticket
-//             		String passenger = passengerName();
-//             		int route = rand.nextInt(routenum) + 1;
-//             		int departure = rand.nextInt(stationnum - 1) + 1;
-//             		int arrival = departure + rand.nextInt(stationnum - departure) + 1; // arrival is always greater than departure
-//             		if ((ticket = tds.buyTicket(passenger, route, departure, arrival)) != null) {
-//             			soldTicket.add(ticket);
-//             			// System.out.println("TicketBought" + " " + ticket.tid + " " + ticket.passenger + " " + ticket.route + " " + ticket.coach + " " + ticket.departure + " " + ticket.arrival + " " + ticket.seat);
-//         				// System.out.flush();
-//             		} else {
-//             			// System.out.println("TicketSoldOut" + " " + route+ " " + departure+ " " + arrival);
-//         				// System.out.flush();
-//             		}
-//             	} else if (buypc <= sel && sel < inqpc) { // inquiry ticket
-            		
-//             		int route = rand.nextInt(routenum) + 1;
-//             		int departure = rand.nextInt(stationnum - 1) + 1;
-//             		int arrival = departure + rand.nextInt(stationnum - departure) + 1; // arrival is always greater than departure
-//             		int leftTicket = tds.inquiry(route, departure, arrival);
-//             		// System.out.println("RemainTicket" + " " + leftTicket + " " + route+ " " + departure+ " " + arrival);
-//     				// System.out.flush();  
-    				         			
-//             	}
-//             }
-
-// 		}
-// 	}
-
-// 	public static void main(String[] args) throws InterruptedException {
-
-		
-// 		for (int i = 1; i >= 0; i++) {
-// 			int tnum = threadnum >>> i;
-// 			long totalTime = 0;
-// 			for (int t = 0; t < 3; t++) {
-// 				final TicketingDS tds = new TicketingDS(routenum, coachnum, seatnum, stationnum, threadnum);
-// 				Thread[] threads = new Thread[tnum];
-// 				for (int p = 0; p < tnum; p++) {
-// 					threads[p] = new TestThread(tds);
-// 				}
-// 				long before = System.currentTimeMillis();
-// 				for (int j = 0; j < tnum; j++){
-// 					threads[j].start();
-// 				}
-// 				for (int j = 0; j < tnum; j++){
-// 					threads[j].join();
-// 				}
-// 				long after = System.currentTimeMillis();			
-// 				totalTime += after - before;
-// 			}
-// 			double meanTime = (double) totalTime / 3.0;
-// 			System.out.printf("Threadnum %d, meanTime out of 3 runs is %f", tnum, meanTime);
-// 		}
-// 		//ToDo
-// 	}
-// }
-package ticketingsystem;
+\package ticketingsystem;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Random;
@@ -121,10 +14,10 @@ class TestResult {
     }
 
     /**
-     * @param avgSingleBuyTicketTime 测试中每个线程执行购票操作耗时
-     * @param avgRefundTime 测试中每个线程执行退票操作耗时
-     * @param avgInquiryTime 测试中每个线程执行查询操作耗时
-     * @param throughput 系统总吞吐量
+     * @param avgSingleBuyTicketTime 
+     * @param avgRefundTime
+     * @param avgInquiryTime
+     * @param throughput
      */
     public TestResult(double avgSingleBuyTicketTime, double avgRefundTime, double avgInquiryTime, double throughput) {
         this.avgSingleBuyTicketTime = avgSingleBuyTicketTime;
@@ -166,7 +59,6 @@ public class Test {
     public TestResult test(final int threadnum, final int testnum, final int routenum, final int coachnum, final int seatnum, final int stationnum) throws Exception {
         Thread[] threads = new Thread[threadnum];
 
-        // 用于计算单线程方法平均耗时
         final long[] functionStartTime = new long[threadnum];
 
         final long[][] functionCostTimeSum = new long[threadnum][3];
@@ -278,6 +170,5 @@ public class Test {
             testResult[i].throughput /= each;
             System.out.println("Thread: " + thread_nums[i] + "\n" + testResult[i]);
         }
-        // TODO 验证多线程的正确性
     }
 }
