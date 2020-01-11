@@ -1,5 +1,5 @@
 package ticketingsystem;
-import java.math.BigDecimal;
+import java.util.concurrent.atomic.*;
 import java.util.ArrayList;
 import java.util.Random;
 
@@ -9,9 +9,9 @@ class TestResult {
     public double avgSingleInquiryTime;
     public double throughput;
 
-    public TestResult() {
+	public TestResult() {
 
-    }
+	}
 
     /**
      * @param avgSingleBuyTicketTime 
@@ -44,9 +44,8 @@ public class Test {
 
 
     public String passengerName(int testnum) {
-        Random rand = new Random();
-        long uid = rand.nextInt(testnum);
-        return "passenger" + uid;
+		AtomicLong tid = new AtomicLong(0);
+        return "passenger" + tid.getAndIncrement();
     }
 
     public TestResult test(final int threadnum, final int testnum, final int routenum, final int coachnum, final int seatnum, final int stationnum) throws Exception {
@@ -61,46 +60,37 @@ public class Test {
         final TicketingDS tds = new TicketingDS(routenum, coachnum, seatnum, stationnum, threadnum);
 
         for (int i = 0; i < threadnum; i++) {
-            final int finalI = i;
+			final int fi = i;
             threads[i] = new Thread(new Runnable() {
                 public void run() {
                     Random rand = new Random();
                     Ticket ticket;
                     ArrayList<Ticket> soldTicket = new ArrayList<>();
-
                     for (int j = 0; j < testnum; j++) {
                         int sel = rand.nextInt(inqpc);
-                        functionStartTime[finalI] = System.currentTimeMillis();
+                        functionStartTime[fi] = System.currentTimeMillis();
                         if (0 <= sel && sel < retpc && soldTicket.size() > 0) { //  refund ticket
                             int select = rand.nextInt(soldTicket.size());
-                            if ((ticket = soldTicket.remove(select)) != null) {
-                                if (tds.refundTicket(ticket)) {
-                                } else {
-                                    // nothing
-                                }
-                            } else {
-                                //nothing
-                            }
-                            executeCount[finalI][0]++;
-                            functionCostTimeSum[finalI][0] += System.currentTimeMillis() - functionStartTime[finalI];
+                            if ((ticket = soldTicket.remove(select)) != null)
+                                tds.refundTicket(ticket);
+                            executeCount[fi][0]++;
+                            functionCostTimeSum[fi][0] += System.currentTimeMillis() - functionStartTime[fi];
                         } else if (retpc <= sel && sel < buypc) { // buy ticket
                             String passenger = passengerName(testnum);
                             int route = rand.nextInt(routenum) + 1;
                             int departure = rand.nextInt(stationnum - 1) + 1;
                             int arrival = departure + rand.nextInt(stationnum - departure) + 1; // arrival is always greater than departure
-                            if ((ticket = tds.buyTicket(passenger, route, departure, arrival)) != null) {
+                            if ((ticket = tds.buyTicket(passenger, route, departure, arrival)) != null) 
                                 soldTicket.add(ticket);
-                            } else {
-                            }
-                            executeCount[finalI][1]++;
-                            functionCostTimeSum[finalI][1] += System.currentTimeMillis() - functionStartTime[finalI];
+                            executeCount[fi][1]++;
+                            functionCostTimeSum[fi][1] += System.currentTimeMillis() - functionStartTime[fi];
                         } else if (buypc <= sel && sel < inqpc) { // inquiry ticket
                             int route = rand.nextInt(routenum) + 1;
                             int departure = rand.nextInt(stationnum - 1) + 1;
                             int arrival = departure + rand.nextInt(stationnum - departure) + 1; // arrival is always greater than departure
                             int leftTicket = tds.inquiry(route, departure, arrival);
-                            executeCount[finalI][2]++;
-                            functionCostTimeSum[finalI][2] += System.currentTimeMillis() - functionStartTime[finalI];
+                            executeCount[fi][2]++;
+                            functionCostTimeSum[fi][2] += System.currentTimeMillis() - functionStartTime[fi];
                         }
                     }
                 }
@@ -144,7 +134,6 @@ public class Test {
 
         Test test = new Test();
 
-        double[] result = new double[thread_nums.length];
         TestResult[] testResult = new TestResult[thread_nums.length];
         for (int i = 0; i < thread_nums.length; i++) {
             testResult[i] = new TestResult();

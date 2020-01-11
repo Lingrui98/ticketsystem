@@ -47,21 +47,6 @@ public class TicketingDS implements TicketingSystem {
 
     Thread proposalingThread;
 
-    ObjectPool<Ticket> pool =ObjectPool.NonBlocking(new PoolableObject<Ticket>() {
-        public void onReturn(Ticket t) {
-            return;
-        }
-
-        public void onTake(Ticket t) {
-            return;
-        }
-
-        @Override
-        public Ticket create() {
-            return new Ticket();
-        }
-    });
-
     enum Operation {
         BUY, REFUND;
     }
