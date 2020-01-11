@@ -1,6 +1,6 @@
 package ticketingsystem;
 
-class Ticket{
+class Ticket extends IPoolCell{
 	long tid;
 	String passenger;
 	int route;
@@ -28,6 +28,16 @@ class Ticket{
         this.departure = departure;
         this.arrival = arrival;
 	}
+
+    public void clear() {
+        this.tid = -1;
+        this.passenger = "";
+        this.route = 0;
+        this.coach = 0;
+        this.seat = 0;
+        this.departure = 0;
+        this.arrival = 0;
+    }
 }
 
 

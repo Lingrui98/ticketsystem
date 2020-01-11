@@ -2,7 +2,7 @@ package ticketingsystem;
 
 import java.util.*;
 
-public class TicketWithHash implements Comparable<TicketWithHash>{
+public class TicketWithHash implements Comparable<TicketWithHash> {
     public Ticket ticket;
 
     public TicketWithHash() {
@@ -38,5 +38,9 @@ public class TicketWithHash implements Comparable<TicketWithHash>{
 
     public String toString() {
         return ticket.toString();
+    }
+
+    public void clear() {
+        ticket = null;
     }
 }

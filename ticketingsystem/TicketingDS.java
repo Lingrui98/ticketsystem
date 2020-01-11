@@ -26,12 +26,13 @@ public class TicketingDS implements TicketingSystem {
     protected AtomicInteger[][] seats = null;
 
     // protected ConcurrentHashMap<TicketWithHash, Boolean> soldTicketMap = new ConcurrentHashMap<TicketWithHash, Boolean>();
-    protected ConcurrentSkipListSet<TicketWithHash> soldTicketSet = new ConcurrentSkipListSet<TicketWithHash>();
+    // protected ConcurrentSkipListSet<TicketWithHash> soldTicketSet = new ConcurrentSkipListSet<TicketWithHash>();
     // protected SOSet<TicketWithHash> soldTicketSet = new SOSet<TicketWithHash>(0x7fffff);
+    protected ConcurrentSkipListSet<Long> soldTicketSet = new ConcurrentSkipListSet<Long>();
 
     protected AtomicInteger[][] remainingTickets;
 
-    protected LinkedBlockingQueue<RegisterRequest> remainingTicketProcessingQueue = new LinkedBlockingQueue<RegisterRequest>();
+    protected LockFreeQueue<RegisterRequest> remainingTicketProcessingQueue = new LockFreeQueue<RegisterRequest>();
 
     protected LockFreeQueue<Integer>[] potentialQueue = null;
 
@@ -42,6 +43,9 @@ public class TicketingDS implements TicketingSystem {
     protected AtomicInteger[][] proposal;
 
     protected AtomicInteger[][] routeIntervalCounter;
+
+    // protected Pool<Ticket> ticketPool = new Pool<Ticket>("Ticket Pool");
+    // protected Pool<TicketWithHash> hashTicketPool = new Pool<TicketWithHash>("Hash Ticket Pool");
 
     // protected LockFreeQueue<Ticket> dummyTickets = new LockFreeQueue<Ticket>();
 
@@ -121,52 +125,45 @@ public class TicketingDS implements TicketingSystem {
         public void run() {
             while (true) {
                 RegisterRequest request = null;
-                try {
-                    if ((request = remainingTicketProcessingQueue.take()) != null) {
-                        int route = request.route;
-                        int from = request.departure;
-                        int to = request.arrival;
-                        int status = request.status;
-                        if (request.type == Operation.BUY) {
-                            int lower = getLowerBoundOfMaximumEmptyInterval(status, from);
-                            int upper = getUpperBoundOfMaximumEmptyInterval(status, to);
-                            // System.out.printf("Processing buying..Lower%d, Upper%d\n", lower, upper);
-                            // System.out.flush();
-                            int x, y;
-                            for (x = lower; x < to; x++) {
-                                for (y = from+1; y <= upper+1; y++) {
-                                    if (x < y) {
-                                        int val = remainingTickets[route][getRemainingTicketSetIndex(x,y)].getAndDecrement();
-                                        // System.out.printf("Decrease of (%d,%d), status 0x%x, from %d, to %d, value from %d to %d\n",
-                                        //      x, y, status, from, to, val, val-1);
-                                        // System.out.flush();
-                                    }
-                                }
-                            }
-                        }
-                        else if (request.type == Operation.REFUND) {
-                            int lower = getLowerBoundOfMaximumEmptyInterval(status, from);
-                            int upper = getUpperBoundOfMaximumEmptyInterval(status, to);
-                            // System.out.printf("Processing refunding..Lower%d, Upper%d\n", lower, upper);
-                            // System.out.flush();
-                            int x, y;
-                            for (x = lower; x < to; x++) {
-                                for (y = from+1; y <= upper+1; y++) {
-                                    if (x < y) {
-                                        int val = remainingTickets[route][getRemainingTicketSetIndex(x,y)].getAndIncrement();
-                                        // System.out.printf("Increase of (%d,%d), status 0x%x, from %d, to %d, value from %d to %d\n",
-                                        //  x, y, status, from, to, val, val+1);
-                                        // System.out.flush();
-                                    }
+                if ((request = remainingTicketProcessingQueue.dequeue()) != null) {
+                    int route = request.route;
+                    int from = request.departure;
+                    int to = request.arrival;
+                    int status = request.status;
+                    if (request.type == Operation.BUY) {
+                        int lower = getLowerBoundOfMaximumEmptyInterval(status, from);
+                        int upper = getUpperBoundOfMaximumEmptyInterval(status, to);
+                        // System.out.printf("Processing buying..Lower%d, Upper%d\n", lower, upper);
+                        // System.out.flush();
+                        int x, y;
+                        for (x = lower; x < to; x++) {
+                            for (y = from+1; y <= upper+1; y++) {
+                                if (x < y) {
+                                    int val = remainingTickets[route][getRemainingTicketSetIndex(x,y)].getAndDecrement();
+                                    // System.out.printf("Decrease of (%d,%d), status 0x%x, from %d, to %d, value from %d to %d\n",
+                                    //      x, y, status, from, to, val, val-1);
+                                    // System.out.flush();
                                 }
                             }
                         }
                     }
-
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                } finally {
-                    continue;
+                    else if (request.type == Operation.REFUND) {
+                        int lower = getLowerBoundOfMaximumEmptyInterval(status, from);
+                        int upper = getUpperBoundOfMaximumEmptyInterval(status, to);
+                        // System.out.printf("Processing refunding..Lower%d, Upper%d\n", lower, upper);
+                        // System.out.flush();
+                        int x, y;
+                        for (x = lower; x < to; x++) {
+                            for (y = from+1; y <= upper+1; y++) {
+                                if (x < y) {
+                                    int val = remainingTickets[route][getRemainingTicketSetIndex(x,y)].getAndIncrement();
+                                    // System.out.printf("Increase of (%d,%d), status 0x%x, from %d, to %d, value from %d to %d\n",
+                                    //  x, y, status, from, to, val, val+1);
+                                    // System.out.flush();
+                                }
+                            }
+                        }
+                    }
                 }
                 
             }
@@ -569,6 +566,48 @@ public class TicketingDS implements TicketingSystem {
         }
     }
 
+
+    private final long wrapTid(long tid, String passenger, int route, int coach,
+        int seat, int departure, int arrival) {
+        // Suppose tid < 2^20, passenger num < 2^20, route < 2^5, coach < 2^5, seat < 2^5,
+        // departure < 2 ^ 4, arrival < 2^4
+        String dest = passenger.replaceAll("[^0-9]","");
+        int passengerInt = Integer.parseInt(dest);
+        long finalTid = tid;
+        finalTid <<= 20;
+        finalTid += passengerInt;
+        finalTid <<= 20;
+        finalTid += route;
+        finalTid <<= 5;
+        finalTid += coach;
+        finalTid <<= 5;
+        finalTid += seat;
+        finalTid <<= 5;
+        finalTid += departure;
+        finalTid <<= 4;
+        finalTid += arrival;
+        return finalTid;
+    }
+
+    private final long wrapTid(Ticket ticket) {
+        String dest = ticket.passenger.replaceAll("[^0-9]","");
+        int passengerInt = Integer.parseInt(dest);
+        long finalTid = ticket.tid;
+        finalTid <<= 20;
+        finalTid += passengerInt;
+        finalTid <<= 20;
+        finalTid += ticket.route;
+        finalTid <<= 5;
+        finalTid += ticket.coach;
+        finalTid <<= 5;
+        finalTid += ticket.seat;
+        finalTid <<= 5;
+        finalTid += ticket.departure;
+        finalTid <<= 4;
+        finalTid += ticket.arrival;
+        return finalTid;       
+    }
+
     // private void printSoldTicketSetMaxElem() {
     //     int max = soldTicketSet.getMax();
     //     System.out.println("Maximum set num is " + max);
@@ -593,11 +632,11 @@ public class TicketingDS implements TicketingSystem {
         }
         else {
             
-            Ticket ticket = null;
-            // if ((ticket = dummyTicket.getAndSet(null)) == null) {
-            ticket = new Ticket();
+            // Ticket ticket = null;
+            // // if ((ticket = dummyTicket.getAndSet(null)) == null) {
+            // ticket = ticketPool.get();
             // }
-            // Ticket ticket = new Ticket();
+            Ticket ticket = new Ticket();
             long tid = this.systemtid.getAndIncrement();
 
             // if (ticket.tid % 1000000 == 0)
@@ -676,6 +715,7 @@ public class TicketingDS implements TicketingSystem {
                 // If all failed, out
                 else {
                     updateRouteIntervalCounter(route, departure, arrival, Operation.REFUND);
+                    // ticketPool.release(ticket);
                     return null;
                 }
             }
@@ -686,13 +726,13 @@ public class TicketingDS implements TicketingSystem {
             //     System.out.printf("Buying tid %d, %susing potential, initial ind %d, final ind %d, inquiried of %d(%d%%) seats\n",
             //         tid, potentialNotNull ? "" : "not ", initialSeatIndex, ind, roll, roll * 100 / this.seatPerTrain); 
 
-
-            TicketWithHash soldTicket = null;
+            Long soldTicket = new Long(wrapTid(ticket));
+            // TicketWithHash soldTicket = null;
             // if ((soldTicket = dummyHashTicket.getAndSet(null)) == null){
-                soldTicket = new TicketWithHash();
+            //     soldTicket = new TicketWithHash();
             // }
 
-            soldTicket.ticket = ticket;
+            // soldTicket.ticket = ticket;
 
             if (!this.soldTicketSet.add(soldTicket)) {
                 System.out.println("Error adding sold ticket to hashset");
@@ -710,7 +750,7 @@ public class TicketingDS implements TicketingSystem {
 
             if (this.USE_PROPOSAL)
                 proposalSetProcessingQueue.enqueue(request);
-            remainingTicketProcessingQueue.offer(request);
+            remainingTicketProcessingQueue.enqueue(request);
             //System.out.println("Buying ticket of " + ticket);
             //System.out.flush();
             return ticket;
@@ -724,12 +764,12 @@ public class TicketingDS implements TicketingSystem {
 
     public boolean refundTicket(Ticket ticket) {
 
-        TicketWithHash soldTicket = null;
+        // TicketWithHash soldTicket = null;
         // if ((soldTicket = dummyHashTicket.getAndSet(null)) == null) {
-            soldTicket = new TicketWithHash();
+        Long soldTicket = new Long(wrapTid(ticket));
         // }
 
-        soldTicket.ticket = ticket;
+        // soldTicket.ticket = ticket;
 
         if (!soldTicketSet.remove(soldTicket)) {
             // dummyHashTicket.set(soldTicket);
@@ -760,7 +800,9 @@ rretry: while(true)
 
             if (this.USE_PROPOSAL)
                 proposalSetProcessingQueue.enqueue(request);
-            remainingTicketProcessingQueue.offer(request);
+            remainingTicketProcessingQueue.enqueue(request);
+            // hashTicketPool.release(soldTicket);
+            // ticketPool.release(ticket);
             // dummyTicket.set(ticket);
             return true;
 }
