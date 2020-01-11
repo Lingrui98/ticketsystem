@@ -8,27 +8,27 @@ import java.util.*;
 public class TicketingDS implements TicketingSystem {
 
 	//ToDo
-    private int routenum = 5;
-    private int coachnum = 8;
-    private int seatnum = 100;
-    private int stationnum = 10;
-    private int threadnum = 16;
-    private int intervalnum = 45;
-    private int seatPerTrain = 800;
+    private final int routenum;
+    private final int coachnum;
+    private final int seatnum;
+    private final int stationnum;
+    private final int threadnum;
+    private final int intervalnum;
+    private final int seatPerTrain;
 
-    private boolean USE_PROPOSAL = false;
-    private boolean USE_POTENTIAL_QUEUE = true;
-    private boolean USE_SOLDOUT_INDICATOR = true;
+    private final boolean USE_PROPOSAL = false;
+    private final boolean USE_POTENTIAL_QUEUE = true;
+    private final boolean USE_SOLDOUT_INDICATOR = true;
 
     // ind ---> y
     protected int[] remainingTicketSetIndexMap = null;
 
     protected AtomicInteger[][] seats = null;
 
-    // protected ConcurrentHashMap<TicketWithHash, Boolean> soldTicketMap = new ConcurrentHashMap<TicketWithHash, Boolean>();
+    protected ConcurrentHashMap<Long, Boolean> soldTicketMap = new ConcurrentHashMap<Long, Boolean>();
     // protected ConcurrentSkipListSet<TicketWithHash> soldTicketSet = new ConcurrentSkipListSet<TicketWithHash>();
     // protected SOSet<TicketWithHash> soldTicketSet = new SOSet<TicketWithHash>(0x7fffff);
-    protected ConcurrentSkipListSet<Long> soldTicketSet = new ConcurrentSkipListSet<Long>();
+    protected Set<Long> soldTicketSet = Collections.newSetFromMap(soldTicketMap);
 
     protected AtomicInteger[][] remainingTickets;
 
@@ -379,29 +379,29 @@ public class TicketingDS implements TicketingSystem {
         }
     }
 
-    public TicketingDS() {
-        InitializeSeats();
-        SetTicketSet();
-        SetRemainingTicketSetIndexMap();
-        if (this.USE_POTENTIAL_QUEUE)
-            initPotentialQueue();
-        // printParams();
-        this.ticketRegisteringThread = new RemainingTicketProcessingThread(); 
-        this.ticketRegisteringThread.setDaemon(true);
-        this.ticketRegisteringThread.start();
-        if (this.USE_PROPOSAL) {
-            initProposalSet();
-            this.proposalDealingThread = new proposalSetProcessingThread();
-            this.proposalDealingThread.setDaemon(true);
-            this.proposalDealingThread.start();
-            this.proposalingThread = new proposalSettingThread();
-            this.proposalingThread.setDaemon(true);
-            this.proposalingThread.start();
-        }
-        if (this.USE_SOLDOUT_INDICATOR) {
-            initRouteIntervalCounter();
-        }
-    }
+    // public TicketingDS() {
+    //     InitializeSeats();
+    //     SetTicketSet();
+    //     SetRemainingTicketSetIndexMap();
+    //     if (this.USE_POTENTIAL_QUEUE)
+    //         initPotentialQueue();
+    //     // printParams();
+    //     this.ticketRegisteringThread = new RemainingTicketProcessingThread(); 
+    //     this.ticketRegisteringThread.setDaemon(true);
+    //     this.ticketRegisteringThread.start();
+    //     if (this.USE_PROPOSAL) {
+    //         initProposalSet();
+    //         this.proposalDealingThread = new proposalSetProcessingThread();
+    //         this.proposalDealingThread.setDaemon(true);
+    //         this.proposalDealingThread.start();
+    //         this.proposalingThread = new proposalSettingThread();
+    //         this.proposalingThread.setDaemon(true);
+    //         this.proposalingThread.start();
+    //     }
+    //     if (this.USE_SOLDOUT_INDICATOR) {
+    //         initRouteIntervalCounter();
+    //     }
+    // }
 
 
     AtomicLong systemtid = new AtomicLong(2);
