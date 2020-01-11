@@ -153,8 +153,8 @@ class TestResult {
 
 public class Test {
     final static int inqpc = 100;
-    final static int retpc = 10;
-    final static int buypc = 40;
+    final static int retpc = 5;
+    final static int buypc = 20;
 
 
     public String passengerName(int testnum) {
@@ -248,7 +248,7 @@ public class Test {
     }
 
     public TestResult test(int threadnum) throws Exception {
-        return test(threadnum, 10000, 5, 8, 100, 10);
+        return test(threadnum, 500000, 20, 15, 100, 10);
     }
 
     public TestResult test() throws Exception {
@@ -256,7 +256,7 @@ public class Test {
     }
 
     public static void main(String[] args) throws Exception {
-        int[] thread_nums = {4, 8, 16, 32, 64};
+        int[] thread_nums = {4, 8, 16, 32, 64, 96};
         int each = 5;
 
         Test test = new Test();
