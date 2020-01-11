@@ -474,7 +474,7 @@ public class TicketingDS implements TicketingSystem {
         else {
             
             Ticket ticket = null;
-            if ((ticket = pool.take()) == null)
+            // if ((ticket = pool.take()) == null)
                 ticket = new Ticket();
             long tid = this.systemtid.getAndIncrement();
 
@@ -530,7 +530,7 @@ public class TicketingDS implements TicketingSystem {
                 // If all failed, out
                 else {
                     updateRouteIntervalCounter(route, departure, arrival, Operation.REFUND);
-                    pool.put(ticket);
+                    // pool.put(ticket);
                     return null;
                 }
             }
@@ -589,7 +589,7 @@ rretry: while(true)
             if (this.USE_PROPOSAL)
                 proposalSetProcessingQueue.enqueue(request);
             remainingTicketProcessingQueue.enqueue(request);
-            pool.put(ticket);
+            // pool.put(ticket);
             return true;
 }
 
