@@ -1,2 +1,1 @@
-javac ticketingsystem/SOSetTest.java
-java ticketingsystem/SOSetTest > res
+javac -encoding UTF-8 -cp . ticketingsystem/Test.java
