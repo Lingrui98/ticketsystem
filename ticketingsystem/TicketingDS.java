@@ -591,17 +591,19 @@ public class TicketingDS implements TicketingSystem {
 
     private final long wrapTid(Ticket ticket) {
         String dest = ticket.passenger.replaceAll("[^0-9]","");
+        
         int passengerInt = Integer.parseInt(dest);
+        // System.out.println("get passenger Int " + passengerInt);
         long finalTid = ticket.tid;
         finalTid <<= 20;
         finalTid += passengerInt;
-        finalTid <<= 20;
+        finalTid <<= 5;
         finalTid += ticket.route;
         finalTid <<= 5;
         finalTid += ticket.coach;
         finalTid <<= 5;
         finalTid += ticket.seat;
-        finalTid <<= 5;
+        finalTid <<= 4;
         finalTid += ticket.departure;
         finalTid <<= 4;
         finalTid += ticket.arrival;
