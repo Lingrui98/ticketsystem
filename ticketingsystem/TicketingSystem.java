@@ -1,6 +1,6 @@
 package ticketingsystem;
 
-class Ticket{
+class Ticket {
 	long tid;
 	String passenger;
 	int route;

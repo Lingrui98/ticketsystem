@@ -47,6 +47,21 @@ public class TicketingDS implements TicketingSystem {
 
     Thread proposalingThread;
 
+    ObjectPool<Ticket> pool =ObjectPool.NonBlocking(new PoolableObject<Ticket>() {
+        public void onReturn(Ticket t) {
+            return;
+        }
+
+        public void onTake(Ticket t) {
+            return;
+        }
+
+        @Override
+        public Ticket create() {
+            return new Ticket();
+        }
+    });
+
     enum Operation {
         BUY, REFUND;
     }
@@ -458,7 +473,9 @@ public class TicketingDS implements TicketingSystem {
         }
         else {
             
-            Ticket ticket = new Ticket();
+            Ticket ticket = null;
+            if ((ticket = pool.take()) == null)
+                ticket = new Ticket();
             long tid = this.systemtid.getAndIncrement();
 
             // if (ticket.tid % 1000000 == 0)
@@ -497,6 +514,7 @@ public class TicketingDS implements TicketingSystem {
                     //System.out.println("Success, buying ticket of " + ticket);
                     //System.out.flush();
                     ticket.set(tid, passenger, route, coach, seat, departure, arrival);
+                    // System.out.println(ticket);
                     break bretry;
                 }
             }
@@ -512,6 +530,7 @@ public class TicketingDS implements TicketingSystem {
                 // If all failed, out
                 else {
                     updateRouteIntervalCounter(route, departure, arrival, Operation.REFUND);
+                    pool.put(ticket);
                     return null;
                 }
             }
@@ -570,6 +589,7 @@ rretry: while(true)
             if (this.USE_PROPOSAL)
                 proposalSetProcessingQueue.enqueue(request);
             remainingTicketProcessingQueue.enqueue(request);
+            pool.put(ticket);
             return true;
 }
 
